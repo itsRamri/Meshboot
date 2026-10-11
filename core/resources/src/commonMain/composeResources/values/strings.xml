@@ -2083,6 +2083,30 @@
     <string name="zh_CN" translatable="false">简体中文</string>
     <string name="zh_TW" translatable="false">繁體中文</string>
     <string name="zoom_in">Zoom in</string>
-    <string name="zoom_out">Zoom out</string>
+    <!-- LOCAL CALLS -->
+    <string name="local_calls">Local Calls</string>
+    <string name="local_calls_desc">Direct voice calling over local Wi-Fi network</string>
+    <string name="local_calls_enable">Enable Local Wi-Fi Calling</string>
+    <string name="local_calls_enable_desc">Discover nearby peers on the same Wi-Fi and allow incoming calls</string>
+    <string name="local_calls_status_enabled">Available on local Wi-Fi</string>
+    <string name="local_calls_status_disabled">Local Wi-Fi Calling is disabled</string>
+    <string name="local_calls_no_peers">No local users found on this Wi-Fi network</string>
+    <string name="local_calls_scanning">Discovering nearby users on Wi-Fi…</string>
+    <string name="local_calls_permission_mic">Microphone permission is required to make and receive voice calls.</string>
+    <string name="local_calls_calling">Calling…</string>
+    <string name="local_calls_ringing">Ringing…</string>
+    <string name="local_calls_incoming">Incoming Local Call</string>
+    <string name="local_calls_connected">Connected</string>
+    <string name="local_calls_ended">Call Ended</string>
+    <string name="local_calls_busy">User is busy on another call</string>
+    <string name="local_calls_declined">Call declined</string>
+    <string name="local_calls_timeout">Call timed out (no answer)</string>
+    <string name="local_calls_unreachable">Unable to establish connection with peer</string>
+    <string name="local_calls_end_call">End Call</string>
+    <string name="local_calls_mute">Mute</string>
+    <string name="local_calls_unmute">Unmute</string>
+    <string name="local_calls_speaker">Speaker</string>
+    <string name="local_calls_earpiece">Earpiece</string>
+    <string name="local_calls_same_wifi_note">Both devices must be connected to the same Wi-Fi network without client isolation.</string>
 </resources>
 

@@ -185,6 +185,8 @@ sealed interface SettingsRoute : Route {
 
     @Serializable data object AppFunctionsSettings : SettingsRoute
 
+    @Serializable data object LocalCalls : SettingsRoute
+
     // endregion
 
     // region help & documentation routes
@@ -226,4 +228,13 @@ sealed interface DiscoveryRoute : Route {
     @Serializable data class DiscoveryHistoryDetail(val sessionId: Long) : DiscoveryRoute
 
     @Serializable data class DiscoveryMap(val sessionId: Long) : DiscoveryRoute
+}
+
+@Serializable
+sealed interface LocalCallRoute : Route {
+    @Serializable data object LocalCallGraph : LocalCallRoute, Graph
+
+    @Serializable data object LocalCalls : LocalCallRoute
+
+    @Serializable data class InCall(val peerId: String, val peerName: String, val isIncoming: Boolean) : LocalCallRoute
 }

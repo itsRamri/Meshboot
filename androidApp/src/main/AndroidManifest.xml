@@ -72,6 +72,9 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
     <uses-permission android:name="android.permission.CHANGE_WIFI_MULTICAST_STATE" />
 
     <!-- Needed to open our bluetooth connection to our paired device (after reboot) -->
@@ -213,6 +216,13 @@
             android:name="org.meshtastic.core.service.MeshService"
             android:enabled="true"
             android:foregroundServiceType="connectedDevice|location"
+            android:exported="false" />
+
+        <!-- Local Wi-Fi voice call foreground service -->
+        <service
+            android:name="org.meshtastic.core.service.LocalCallService"
+            android:enabled="true"
+            android:foregroundServiceType="microphone"
             android:exported="false" />
 
         <service

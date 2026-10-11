@@ -147,3 +147,9 @@ expect val bleScanRequiresLocationServices: Boolean
  * that don't require a runtime camera permission.
  */
 @Composable expect fun rememberCameraPermissionState(): PermissionUiState
+
+/**
+ * Returns the reactive [PermissionUiState] for the RECORD_AUDIO permission. Always [PermissionStatus.GRANTED] on
+ * platforms that don't require a runtime microphone permission.
+ */
+@Composable expect fun rememberRecordAudioPermissionState(): PermissionUiState

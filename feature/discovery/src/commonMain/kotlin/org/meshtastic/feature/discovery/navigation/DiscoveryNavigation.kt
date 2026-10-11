@@ -74,6 +74,20 @@ fun EntryProviderScope<NavKey>.discoveryGraph(backStack: NavBackStack<NavKey>) {
             onNavigateToMap = { sessionId -> backStack.add(DiscoveryRoute.DiscoveryMap(sessionId)) },
         )
     }
+    entry<org.meshtastic.core.navigation.LocalCallRoute.LocalCalls> {
+        val viewModel = koinViewModel<org.meshtastic.feature.discovery.LocalCallsViewModel>()
+        org.meshtastic.feature.discovery.ui.LocalCallsScreen(
+            viewModel = viewModel,
+            onNavigateUp = dropUnlessResumed { backStack.removeLastOrNull() },
+        )
+    }
+    entry<org.meshtastic.core.navigation.SettingsRoute.LocalCalls> {
+        val viewModel = koinViewModel<org.meshtastic.feature.discovery.LocalCallsViewModel>()
+        org.meshtastic.feature.discovery.ui.LocalCallsScreen(
+            viewModel = viewModel,
+            onNavigateUp = dropUnlessResumed { backStack.removeLastOrNull() },
+        )
+    }
 }
 
 @Composable

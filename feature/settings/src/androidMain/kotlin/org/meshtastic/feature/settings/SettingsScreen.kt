@@ -313,6 +313,13 @@ fun SettingsScreen(
                         }
                     }
                     ListItem(
+                        text = stringResource(Res.string.local_calls),
+                        supportingText = stringResource(Res.string.local_calls_desc),
+                        leadingIcon = Res.drawable.ic_call,
+                    ) {
+                        onNavigate(SettingsRoute.LocalCalls)
+                    }
+                    ListItem(
                         text = stringResource(Res.string.filter_settings),
                         leadingIcon = MeshtasticIcons.FilterList,
                     ) {
