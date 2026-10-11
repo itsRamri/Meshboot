@@ -21,6 +21,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import org.jetbrains.compose.resources.vectorResource
 import org.meshtastic.core.resources.Res
 import org.meshtastic.core.resources.ic_add_link
+import org.meshtastic.core.resources.ic_call
 import org.meshtastic.core.resources.ic_chat_bubble_outline
 import org.meshtastic.core.resources.ic_fast_forward
 import org.meshtastic.core.resources.ic_filter_list
@@ -33,6 +34,8 @@ import org.meshtastic.core.resources.ic_visibility
 import org.meshtastic.core.resources.ic_visibility_off
 
 // Messaging UI icons
+val MeshtasticIcons.Call: ImageVector
+    @Composable get() = vectorResource(Res.drawable.ic_call)
 val MeshtasticIcons.ChatBubbleOutline: ImageVector
     @Composable get() = vectorResource(Res.drawable.ic_chat_bubble_outline)
 val MeshtasticIcons.FormatQuote: ImageVector

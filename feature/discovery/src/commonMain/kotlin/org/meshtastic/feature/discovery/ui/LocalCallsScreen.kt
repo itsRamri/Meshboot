@@ -139,7 +139,7 @@ fun LocalCallsScreen(
                     ElevatedCard(modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) {
                         Row(
                             modifier = Modifier.fillMaxWidth().padding(16.dp),
-                            verticalAlignment = Alignment.CenterVertangement,
+                            verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.SpaceBetween,
                         ) {
                             Column(modifier = Modifier.weight(1f).padding(end = 12.dp)) {
