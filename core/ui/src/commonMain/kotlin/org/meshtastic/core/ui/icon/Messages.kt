@@ -22,6 +22,7 @@ import org.jetbrains.compose.resources.vectorResource
 import org.meshtastic.core.resources.Res
 import org.meshtastic.core.resources.ic_add_link
 import org.meshtastic.core.resources.ic_call
+import org.meshtastic.core.resources.ic_camera
 import org.meshtastic.core.resources.ic_chat_bubble_outline
 import org.meshtastic.core.resources.ic_fast_forward
 import org.meshtastic.core.resources.ic_filter_list
@@ -30,6 +31,8 @@ import org.meshtastic.core.resources.ic_format_quote
 import org.meshtastic.core.resources.ic_forum
 import org.meshtastic.core.resources.ic_link
 import org.meshtastic.core.resources.ic_message
+import org.meshtastic.core.resources.ic_mic
+import org.meshtastic.core.resources.ic_videocam
 import org.meshtastic.core.resources.ic_visibility
 import org.meshtastic.core.resources.ic_visibility_off
 
@@ -58,3 +61,9 @@ val MeshtasticIcons.Message: ImageVector
     @Composable get() = vectorResource(Res.drawable.ic_message)
 val MeshtasticIcons.Conversations: ImageVector
     @Composable get() = vectorResource(Res.drawable.ic_forum)
+val MeshtasticIcons.Mic: ImageVector
+    @Composable get() = vectorResource(Res.drawable.ic_mic)
+val MeshtasticIcons.Camera: ImageVector
+    @Composable get() = vectorResource(Res.drawable.ic_camera)
+val MeshtasticIcons.Videocam: ImageVector
+    @Composable get() = vectorResource(Res.drawable.ic_videocam)

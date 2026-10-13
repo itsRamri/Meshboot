@@ -100,18 +100,26 @@ import org.meshtastic.core.model.QuickChatAction
 import org.meshtastic.core.model.util.getChannel
 import org.meshtastic.core.resources.Res
 import org.meshtastic.core.resources.archived_channel_read_only
+import org.meshtastic.core.resources.media_feature_not_available
 import org.meshtastic.core.resources.send
+import org.meshtastic.core.resources.send_photo
+import org.meshtastic.core.resources.send_video
 import org.meshtastic.core.resources.type_a_message
 import org.meshtastic.core.resources.unknown_channel
+import org.meshtastic.core.resources.voice_recording
 import org.meshtastic.core.ui.component.InlineStyle
 import org.meshtastic.core.ui.component.ShareContactDialog
 import org.meshtastic.core.ui.component.smartScrollToIndex
+import org.meshtastic.core.ui.icon.Camera
 import org.meshtastic.core.ui.icon.History
 import org.meshtastic.core.ui.icon.MeshtasticIcons
+import org.meshtastic.core.ui.icon.Mic
 import org.meshtastic.core.ui.icon.Send
+import org.meshtastic.core.ui.icon.Videocam
 import org.meshtastic.core.ui.theme.AppTheme
 import org.meshtastic.core.ui.util.createClipEntry
 import org.meshtastic.core.ui.util.isFromSoftKeyboard
+import org.meshtastic.core.ui.util.rememberShowToastResource
 import org.meshtastic.feature.messaging.component.ActionModeTopBar
 import org.meshtastic.feature.messaging.component.DeleteMessageDialog
 import org.meshtastic.feature.messaging.component.FormattingToolbar
@@ -881,6 +889,8 @@ internal fun MessageInput(
     }
 
     var isFocused by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
+    val showToast = rememberShowToastResource()
 
     Column(modifier = modifier.fillMaxWidth()) {
         if (mentionActive) {
@@ -912,6 +922,61 @@ internal fun MessageInput(
             shape = RoundedCornerShape(ROUNDED_CORNER_PERCENT.toFloat()),
             isError = isOverLimit,
             placeholder = { Text(stringResource(Res.string.type_a_message)) },
+            leadingIcon = {
+                Row {
+                    IconButton(
+                        onClick = {
+                            scope.launch { showToast(Res.string.media_feature_not_available) }
+                        },
+                        enabled = isEnabled,
+                    ) {
+                        Icon(
+                            imageVector = MeshtasticIcons.Mic,
+                            contentDescription = stringResource(Res.string.voice_recording),
+                            tint =
+                            if (isEnabled) {
+                                MaterialTheme.colorScheme.onSurfaceVariant
+                            } else {
+                                MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f)
+                            },
+                        )
+                    }
+                    IconButton(
+                        onClick = {
+                            scope.launch { showToast(Res.string.media_feature_not_available) }
+                        },
+                        enabled = isEnabled,
+                    ) {
+                        Icon(
+                            imageVector = MeshtasticIcons.Camera,
+                            contentDescription = stringResource(Res.string.send_photo),
+                            tint =
+                            if (isEnabled) {
+                                MaterialTheme.colorScheme.onSurfaceVariant
+                            } else {
+                                MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f)
+                            },
+                        )
+                    }
+                    IconButton(
+                        onClick = {
+                            scope.launch { showToast(Res.string.media_feature_not_available) }
+                        },
+                        enabled = isEnabled,
+                    ) {
+                        Icon(
+                            imageVector = MeshtasticIcons.Videocam,
+                            contentDescription = stringResource(Res.string.send_video),
+                            tint =
+                            if (isEnabled) {
+                                MaterialTheme.colorScheme.onSurfaceVariant
+                            } else {
+                                MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f)
+                            },
+                        )
+                    }
+                }
+            },
             // A multi-line field must keep its Enter key: Compose only sets IME_FLAG_NO_ENTER_ACTION for
             // ImeAction.Default, and without it an IME may swap Enter for the action, leaving no way to type a newline.
             keyboardOptions =

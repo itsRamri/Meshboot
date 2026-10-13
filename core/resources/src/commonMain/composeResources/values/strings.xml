@@ -2108,5 +2108,9 @@
     <string name="local_calls_speaker">Speaker</string>
     <string name="local_calls_earpiece">Earpiece</string>
     <string name="local_calls_same_wifi_note">Both devices must be connected to the same Wi-Fi network without client isolation.</string>
+    <string name="voice_recording">Voice recording</string>
+    <string name="send_photo">Send photo</string>
+    <string name="send_video">Send video</string>
+    <string name="media_feature_not_available">Media transmission is not supported on LoRa mesh</string>
 </resources>
 
