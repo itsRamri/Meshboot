@@ -22,6 +22,7 @@ import app.cash.turbine.test
 import dev.mokkery.MockMode
 import dev.mokkery.answering.returns
 import dev.mokkery.every
+import dev.mokkery.matcher.any
 import dev.mokkery.mock
 import dev.mokkery.verify.VerifyMode
 import dev.mokkery.verifySuspend
@@ -175,6 +176,8 @@ class MessageViewModelTranslationTest {
         every { uiPrefs.showFullMessageTimestamps } returns MutableStateFlow(false)
         every { packetRepository.getContactSettings() } returns
             MutableStateFlow<Map<String, ContactSettings>>(emptyMap())
+        every { packetRepository.getMessagesFrom(any<String>(), any<Int?>(), any<Boolean>(), any()) } returns
+            MutableStateFlow(emptyList())
         every { quickChatActionRepository.getAllActions() } returns MutableStateFlow(emptyList())
 
         viewModel =
@@ -195,6 +198,11 @@ class MessageViewModelTranslationTest {
                 activeConversationTracker = ActiveConversationTracker(),
                 messageTranslationService = translationService,
                 snackbarManager = snackbarManager,
+                mediaTransferManager =
+                org.meshtastic.feature.messaging.media.MediaTransferManager(
+                    sendMessageUseCase,
+                    org.meshtastic.feature.messaging.media.NoOpMediaPlatformService(),
+                ),
             )
     }
 

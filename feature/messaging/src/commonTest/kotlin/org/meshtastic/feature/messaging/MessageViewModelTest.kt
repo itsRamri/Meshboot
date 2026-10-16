@@ -127,6 +127,8 @@ class MessageViewModelTest {
         every { uiPrefs.showFullMessageTimestamps } returns showFullMessageTimestampsFlow
 
         every { packetRepository.getContactSettings() } returns contactSettingsFlow
+        every { packetRepository.getMessagesFrom(any<String>(), any<Int?>(), any<Boolean>(), any()) } returns
+            MutableStateFlow(emptyList())
         every { packetRepository.getFirstUnreadMessageUuid(any<String>()) } returns MutableStateFlow(null)
         every { packetRepository.hasUnreadMessages(any<String>()) } returns MutableStateFlow(false)
         every { packetRepository.getUnreadCountFlow(any<String>()) } returns MutableStateFlow(0)
@@ -152,6 +154,11 @@ class MessageViewModelTest {
                 activeConversationTracker = activeConversationTracker,
                 messageTranslationService = messageTranslationService,
                 snackbarManager = snackbarManager,
+                mediaTransferManager =
+                org.meshtastic.feature.messaging.media.MediaTransferManager(
+                    sendMessageUseCase,
+                    org.meshtastic.feature.messaging.media.NoOpMediaPlatformService(),
+                ),
             )
     }
 

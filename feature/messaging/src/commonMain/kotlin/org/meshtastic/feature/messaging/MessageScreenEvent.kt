@@ -53,4 +53,16 @@ internal sealed interface MessageScreenEvent {
 
     /** Copy the given text to the clipboard. */
     data class CopyToClipboard(val text: String) : MessageScreenEvent
+
+    /** Send a recorded voice message. */
+    data class SendVoiceRecording(val result: org.meshtastic.feature.messaging.media.RecordedAudioResult) : MessageScreenEvent
+
+    /** Send a compressed image. */
+    data class SendCompressedImage(val result: org.meshtastic.feature.messaging.media.CompressedImageResult) : MessageScreenEvent
+
+    /** Send an inspected PDF document. */
+    data class SendProcessedPdf(val result: org.meshtastic.feature.messaging.media.ProcessedPdfResult) : MessageScreenEvent
+
+    /** Cancel an active media transfer session. */
+    data class CancelMediaTransfer(val transferId: String) : MessageScreenEvent
 }

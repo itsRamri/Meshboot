@@ -57,4 +57,8 @@ class DesktopStubsModule {
     @Single fun phoneLocationProvider(): PhoneLocationProvider = NoopPhoneLocationProvider()
 
     @Single fun magneticFieldProvider(): MagneticFieldProvider = NoopMagneticFieldProvider()
+ 
+    @Single
+    fun mediaPlatformService(): org.meshtastic.feature.messaging.media.MediaPlatformService =
+        org.meshtastic.feature.messaging.media.NoOpMediaPlatformService()
 }

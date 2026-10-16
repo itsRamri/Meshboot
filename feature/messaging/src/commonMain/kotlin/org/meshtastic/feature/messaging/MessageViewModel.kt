@@ -71,6 +71,14 @@ import org.meshtastic.core.ui.viewmodel.stateInWhileSubscribed
 import org.meshtastic.feature.messaging.translation.DownloadResult
 import org.meshtastic.feature.messaging.translation.MessageTranslationService
 import org.meshtastic.feature.messaging.translation.TranslationResult
+import org.meshtastic.feature.messaging.media.CompressedImageResult
+import org.meshtastic.feature.messaging.media.MediaAttachment
+import org.meshtastic.feature.messaging.media.MediaChunker
+import org.meshtastic.feature.messaging.media.MediaEnvelope
+import org.meshtastic.feature.messaging.media.MediaTransferManager
+import org.meshtastic.feature.messaging.media.MediaType
+import org.meshtastic.feature.messaging.media.ProcessedPdfResult
+import org.meshtastic.feature.messaging.media.RecordedAudioResult
 import org.meshtastic.proto.ChannelSet
 
 /**
@@ -111,9 +119,13 @@ class MessageViewModel(
     private val sendMessageUseCase: SendMessageUseCase,
     private val messageTranslationService: MessageTranslationService,
     private val snackbarManager: SnackbarManager,
+    val mediaTransferManager: MediaTransferManager,
 ) : ViewModel() {
     private val _title = MutableStateFlow("")
     val title: StateFlow<String> = _title.asStateFlow()
+
+    val mediaTransferStates: StateFlow<Map<String, org.meshtastic.feature.messaging.media.MediaTransferState>> =
+        mediaTransferManager.transferStates
 
     private val _draftMessage = MutableStateFlow<String?>(null)
 
@@ -329,6 +341,17 @@ class MessageViewModel(
         if (contactKey != null) {
             contactKeyForPagedMessages.value = contactKey
         }
+        viewModelScope.launch {
+            contactKeyForPagedMessages.filterNotNull().flatMapLatest { key ->
+                packetRepository.getMessagesFrom(key, limit = 50, getNode = ::getNode)
+            }.collect { messages ->
+                for (msg in messages) {
+                    if (MediaEnvelope.isMediaEnvelope(msg.text)) {
+                        mediaTransferManager.processIncomingMessage(msg.text, msg.node.user.id)
+                    }
+                }
+            }
+        }
     }
 
     fun setContactKey(contactKey: String) {
@@ -415,6 +438,56 @@ class MessageViewModel(
         safeLaunch(errorEvents = sendErrorEvents, tag = "resendMessage") {
             packetRepository.replaceMessage(uuid) { sendMessageUseCase.invoke(text, contactKey, null) }
         }
+    }
+
+    fun sendVoiceRecording(result: RecordedAudioResult, contactKey: String) {
+        val ext = if (result.mimeType.contains("ogg")) "ogg" else "mp4"
+        val plan =
+            MediaChunker.chunk(
+                mediaType = MediaType.VOICE,
+                compressedBytes = result.rawBytes,
+                originalSize = result.sizeBytes,
+                fileName = "voice_${result.durationSeconds}s.$ext",
+            )
+        mediaTransferManager.registerLocalAttachment(
+            plan.transferId,
+            MediaAttachment.Voice(result.filePath, result.sizeBytes, result.durationSeconds),
+        )
+        mediaTransferManager.startOutgoingTransfer(viewModelScope, plan, contactKey)
+    }
+
+    fun sendCompressedImage(result: CompressedImageResult, contactKey: String) {
+        val plan =
+            MediaChunker.chunk(
+                mediaType = MediaType.IMAGE,
+                compressedBytes = result.rawBytes,
+                originalSize = result.originalSize,
+                fileName = "photo.webp",
+            )
+        mediaTransferManager.registerLocalAttachment(
+            plan.transferId,
+            MediaAttachment.Image(result.filePath, result.compressedSize, result.width, result.height, result.mimeType),
+        )
+        mediaTransferManager.startOutgoingTransfer(viewModelScope, plan, contactKey)
+    }
+
+    fun sendProcessedPdf(result: ProcessedPdfResult, contactKey: String) {
+        val plan =
+            MediaChunker.chunk(
+                mediaType = MediaType.PDF,
+                compressedBytes = result.rawBytes,
+                originalSize = result.originalSize,
+                fileName = result.fileName,
+            )
+        mediaTransferManager.registerLocalAttachment(
+            plan.transferId,
+            MediaAttachment.Pdf(result.filePath, result.compressedSize, result.fileName, result.pageCount),
+        )
+        mediaTransferManager.startOutgoingTransfer(viewModelScope, plan, contactKey)
+    }
+
+    fun cancelMediaTransfer(transferId: String) {
+        mediaTransferManager.cancelTransfer(transferId)
     }
 
     // region ── Translation ──

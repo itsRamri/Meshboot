@@ -99,11 +99,11 @@ import org.meshtastic.core.model.NodeAddress
 import org.meshtastic.core.model.QuickChatAction
 import org.meshtastic.core.model.util.getChannel
 import org.meshtastic.core.resources.Res
+import org.koin.compose.koinInject
 import org.meshtastic.core.resources.archived_channel_read_only
-import org.meshtastic.core.resources.media_feature_not_available
+import org.meshtastic.core.resources.media_pdf_document
 import org.meshtastic.core.resources.send
 import org.meshtastic.core.resources.send_photo
-import org.meshtastic.core.resources.send_video
 import org.meshtastic.core.resources.type_a_message
 import org.meshtastic.core.resources.unknown_channel
 import org.meshtastic.core.resources.voice_recording
@@ -111,15 +111,21 @@ import org.meshtastic.core.ui.component.InlineStyle
 import org.meshtastic.core.ui.component.ShareContactDialog
 import org.meshtastic.core.ui.component.smartScrollToIndex
 import org.meshtastic.core.ui.icon.Camera
+import org.meshtastic.core.ui.icon.FolderOpen
 import org.meshtastic.core.ui.icon.History
 import org.meshtastic.core.ui.icon.MeshtasticIcons
 import org.meshtastic.core.ui.icon.Mic
 import org.meshtastic.core.ui.icon.Send
-import org.meshtastic.core.ui.icon.Videocam
 import org.meshtastic.core.ui.theme.AppTheme
 import org.meshtastic.core.ui.util.createClipEntry
 import org.meshtastic.core.ui.util.isFromSoftKeyboard
-import org.meshtastic.core.ui.util.rememberShowToastResource
+import org.meshtastic.core.ui.util.rememberOpenFileLauncher
+import org.meshtastic.feature.messaging.component.MediaPreviewDialog
+import org.meshtastic.feature.messaging.component.VoiceRecordingDialog
+import org.meshtastic.feature.messaging.media.CompressedImageResult
+import org.meshtastic.feature.messaging.media.MediaAttachment
+import org.meshtastic.feature.messaging.media.MediaPlatformService
+import org.meshtastic.feature.messaging.media.ProcessedPdfResult
 import org.meshtastic.feature.messaging.component.ActionModeTopBar
 import org.meshtastic.feature.messaging.component.DeleteMessageDialog
 import org.meshtastic.feature.messaging.component.FormattingToolbar
@@ -188,6 +194,26 @@ fun MessageScreen(
     var replyingToPacketId by rememberSaveable { mutableStateOf<Int?>(null) }
     var showDeleteDialog by rememberSaveable { mutableStateOf(false) }
     var sharedContact by rememberSaveable { mutableStateOf<Node?>(null) }
+    var showVoiceDialog by rememberSaveable { mutableStateOf(false) }
+    var pendingImageResult by remember { mutableStateOf<CompressedImageResult?>(null) }
+    var pendingPdfResult by remember { mutableStateOf<ProcessedPdfResult?>(null) }
+    val mediaPlatformService: MediaPlatformService = koinInject()
+    val pickImageLauncher = rememberOpenFileLauncher { uri ->
+        if (uri != null) {
+            coroutineScope.launch {
+                mediaPlatformService.compressImage(uri.toString())
+                    .onSuccess { pendingImageResult = it }
+            }
+        }
+    }
+    val pickPdfLauncher = rememberOpenFileLauncher { uri ->
+        if (uri != null) {
+            coroutineScope.launch {
+                mediaPlatformService.inspectAndOptimizePdf(uri.toString())
+                    .onSuccess { pendingPdfResult = it }
+            }
+        }
+    }
     val selectedMessageIds = rememberSaveable { mutableStateOf(emptySet<Long>()) }
     val messageInputState = rememberTextFieldState(message)
     val showQuickChat by viewModel.showQuickChat.collectAsStateWithLifecycle()
@@ -383,6 +409,18 @@ fun MessageScreen(
                     is MessageScreenEvent.TranslateMessage -> viewModel.translateMessage(event.message)
 
                     is MessageScreenEvent.ToggleShowTranslated -> viewModel.toggleShowTranslated(event.message)
+
+                    is MessageScreenEvent.SendVoiceRecording ->
+                        viewModel.sendVoiceRecording(event.result, contactKey)
+
+                    is MessageScreenEvent.SendCompressedImage ->
+                        viewModel.sendCompressedImage(event.result, contactKey)
+
+                    is MessageScreenEvent.SendProcessedPdf ->
+                        viewModel.sendProcessedPdf(event.result, contactKey)
+
+                    is MessageScreenEvent.CancelMediaTransfer ->
+                        viewModel.cancelMediaTransfer(event.transferId)
                 }
             }
 
@@ -394,6 +432,41 @@ fun MessageScreen(
             count = selectedMessageIds.value.size,
             onConfirm = { onEvent(MessageScreenEvent.DeleteMessages(selectedMessageIds.value.toList())) },
             onDismiss = { showDeleteDialog = false },
+        )
+    }
+
+    if (showVoiceDialog) {
+        VoiceRecordingDialog(
+            mediaPlatformService = mediaPlatformService,
+            onDismiss = { showVoiceDialog = false },
+            onSendRecording = { result ->
+                showVoiceDialog = false
+                onEvent(MessageScreenEvent.SendVoiceRecording(result))
+            },
+        )
+    }
+
+    pendingImageResult?.let { imgResult ->
+        MediaPreviewDialog(
+            mediaType = org.meshtastic.feature.messaging.media.MediaType.IMAGE,
+            imageResult = imgResult,
+            onDismiss = { pendingImageResult = null },
+            onConfirmSend = {
+                onEvent(MessageScreenEvent.SendCompressedImage(imgResult))
+                pendingImageResult = null
+            },
+        )
+    }
+
+    pendingPdfResult?.let { pdfResult ->
+        MediaPreviewDialog(
+            mediaType = org.meshtastic.feature.messaging.media.MediaType.PDF,
+            pdfResult = pdfResult,
+            onDismiss = { pendingPdfResult = null },
+            onConfirmSend = {
+                onEvent(MessageScreenEvent.SendProcessedPdf(pdfResult))
+                pendingPdfResult = null
+            },
         )
     }
 
@@ -520,6 +593,9 @@ fun MessageScreen(
                                 onEvent(MessageScreenEvent.SendMessage(messageText, replyingToPacketId))
                             }
                         },
+                        onRecordVoice = { showVoiceDialog = true },
+                        onPickImage = { pickImageLauncher("image/*") },
+                        onPickPdf = { pickPdfLauncher("application/pdf") },
                     )
                 }
             }
@@ -837,6 +913,9 @@ internal fun MessageInput(
     modifier: Modifier = Modifier,
     maxByteSize: Int = MESSAGE_CHARACTER_LIMIT_BYTES,
     onSendMessage: () -> Unit,
+    onRecordVoice: () -> Unit = {},
+    onPickImage: () -> Unit = {},
+    onPickPdf: () -> Unit = {},
 ) {
     val currentTextRaw = textFieldState.text.toString()
 
@@ -889,8 +968,6 @@ internal fun MessageInput(
     }
 
     var isFocused by remember { mutableStateOf(false) }
-    val scope = rememberCoroutineScope()
-    val showToast = rememberShowToastResource()
 
     Column(modifier = modifier.fillMaxWidth()) {
         if (mentionActive) {
@@ -925,9 +1002,7 @@ internal fun MessageInput(
             leadingIcon = {
                 Row {
                     IconButton(
-                        onClick = {
-                            scope.launch { showToast(Res.string.media_feature_not_available) }
-                        },
+                        onClick = onRecordVoice,
                         enabled = isEnabled,
                     ) {
                         Icon(
@@ -942,9 +1017,7 @@ internal fun MessageInput(
                         )
                     }
                     IconButton(
-                        onClick = {
-                            scope.launch { showToast(Res.string.media_feature_not_available) }
-                        },
+                        onClick = onPickImage,
                         enabled = isEnabled,
                     ) {
                         Icon(
@@ -959,14 +1032,12 @@ internal fun MessageInput(
                         )
                     }
                     IconButton(
-                        onClick = {
-                            scope.launch { showToast(Res.string.media_feature_not_available) }
-                        },
+                        onClick = onPickPdf,
                         enabled = isEnabled,
                     ) {
                         Icon(
-                            imageVector = MeshtasticIcons.Videocam,
-                            contentDescription = stringResource(Res.string.send_video),
+                            imageVector = MeshtasticIcons.FolderOpen,
+                            contentDescription = stringResource(Res.string.media_pdf_document),
                             tint =
                             if (isEnabled) {
                                 MaterialTheme.colorScheme.onSurfaceVariant
