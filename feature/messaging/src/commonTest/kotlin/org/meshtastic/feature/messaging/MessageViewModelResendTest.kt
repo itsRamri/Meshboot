@@ -87,6 +87,8 @@ class MessageViewModelResendTest {
         every { uiPrefs.showFullMessageTimestamps } returns MutableStateFlow(false)
         every { connectionStateProvider.connectionState } returns MutableStateFlow(ConnectionState.Disconnected)
         every { packetRepository.getContactSettings() } returns MutableStateFlow(emptyMap())
+        every { packetRepository.getMessagesFrom(any<String>(), any<Int?>(), any<Boolean>(), any()) } returns
+            MutableStateFlow(emptyList())
         every { packetRepository.getFirstUnreadMessageUuid(any<String>()) } returns MutableStateFlow(null)
         every { packetRepository.hasUnreadMessages(any<String>()) } returns MutableStateFlow(false)
         every { packetRepository.getUnreadCountFlow(any<String>()) } returns MutableStateFlow(0)
@@ -118,6 +120,11 @@ class MessageViewModelResendTest {
                 activeConversationTracker = ActiveConversationTracker(),
                 messageTranslationService = mock<MessageTranslationService>(MockMode.autofill),
                 snackbarManager = SnackbarManager(),
+                mediaTransferManager =
+                org.meshtastic.feature.messaging.media.MediaTransferManager(
+                    sendMessageUseCase,
+                    org.meshtastic.feature.messaging.media.NoOpMediaPlatformService(),
+                ),
             )
     }
 

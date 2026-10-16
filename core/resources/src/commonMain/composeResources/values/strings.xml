@@ -1080,6 +1080,31 @@
     <string name="match_all">Match All | Any</string>
     <string name="match_any">Match Any | All</string>
     <string name="max">Max</string>
+    <!-- MEDIA -->
+    <string name="media_cancel_transfer">Cancel Transfer</string>
+    <string name="media_compressed_image">Compressed Photo</string>
+    <string name="media_compressed_size">Compressed: %1$s</string>
+    <string name="media_compression_ratio">Ratio: %1$s</string>
+    <string name="media_duration">Duration: %1$s</string>
+    <string name="media_est_transfer_time">Est. Transfer Time: %1$s</string>
+    <string name="media_feature_not_available">Media transmission is not supported on LoRa mesh</string>
+    <string name="media_lossy_downsampling">Allow lossy downsampling</string>
+    <string name="media_open_file">Open File</string>
+    <string name="media_original_size">Original: %1$s</string>
+    <string name="media_pause">Pause</string>
+    <string name="media_pdf_document">PDF Document</string>
+    <string name="media_play">Play</string>
+    <string name="media_preview">Media Preview</string>
+    <string name="media_quality">Quality</string>
+    <string name="media_record_voice">Record Voice Message</string>
+    <string name="media_save_file">Save File</string>
+    <string name="media_select_pdf">Select PDF Document</string>
+    <string name="media_select_photo">Select Photo</string>
+    <string name="media_stop_recording">Stop Recording</string>
+    <string name="media_transfer_complete">Transfer Complete</string>
+    <string name="media_transfer_failed">Transfer Failed</string>
+    <string name="media_transferring">Transferring %1$d/%2$d (%3$s)</string>
+    <string name="media_voice_message">Voice Message</string>
     <!-- MESH -->
     <string name="mesh_beacon">Mesh Beacon</string>
     <string name="mesh_beacon_broadcast">Broadcast a beacon</string>
@@ -1744,6 +1769,8 @@
     <string name="selected">Selected</string>
     <string name="selected_map_type">Selected Map Type</string>
     <string name="send">Send</string>
+    <string name="send_photo">Send photo</string>
+    <string name="send_video">Send video</string>
     <string name="serial">Serial</string>
     <string name="serial_config">Serial Config</string>
     <string name="session_active">Session active</string>
@@ -2016,6 +2043,7 @@
     <string name="view_on_map">View on map</string>
     <string name="view_release">View Release</string>
     <string name="voltage">Voltage</string>
+    <string name="voice_recording">Voice recording</string>
     <string name="warning">Warning</string>
     <string name="water_ph">Water pH</string>
     <string name="waypoint_delete">Delete waypoint?</string>
@@ -2108,9 +2136,5 @@
     <string name="local_calls_speaker">Speaker</string>
     <string name="local_calls_earpiece">Earpiece</string>
     <string name="local_calls_same_wifi_note">Both devices must be connected to the same Wi-Fi network without client isolation.</string>
-    <string name="voice_recording">Voice recording</string>
-    <string name="send_photo">Send photo</string>
-    <string name="send_video">Send video</string>
-    <string name="media_feature_not_available">Media transmission is not supported on LoRa mesh</string>
 </resources>
 

@@ -461,6 +461,28 @@ fun MessageItem(
                             style = MaterialTheme.typography.bodyLarge,
                             color = contentColor,
                         )
+                    } else if (org.meshtastic.feature.messaging.media.MediaEnvelope.isMediaEnvelope(message.text)) {
+                        val envelope = remember(message.text) { org.meshtastic.feature.messaging.media.MediaEnvelope.parse(message.text) }
+                        if (envelope != null) {
+                            MediaAttachmentItem(
+                                envelope = envelope,
+                                onClick = onClick,
+                            )
+                        } else {
+                            val mentionDisplayName =
+                                remember(resolveMention) {
+                                    { id: String ->
+                                        resolveMention(id)?.let { it.user.long_name.ifEmpty { it.user.short_name } }
+                                    }
+                                }
+                            AutoLinkText(
+                                text = bodyText,
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = contentColor,
+                                mentionName = mentionDisplayName,
+                                onMentionClick = { id -> resolveMention(id)?.let(onClickChip) },
+                            )
+                        }
                     } else {
                         val mentionDisplayName =
                             remember(resolveMention) {
@@ -712,5 +734,65 @@ private fun OriginalMessageSnippet(
                 )
             }
         }
+    }
+}
+
+@Composable
+private fun MediaAttachmentItem(
+    envelope: org.meshtastic.feature.messaging.media.MediaEnvelope,
+    onClick: () -> Unit,
+) {
+    if (envelope.chunkIndex == 1) {
+        val metadata = remember(envelope.payload) {
+            org.meshtastic.feature.messaging.media.MediaMetadata.deserialize(envelope.payload)
+        }
+        if (metadata != null) {
+            when (metadata.mediaType) {
+                org.meshtastic.feature.messaging.media.MediaType.VOICE -> {
+                    var isPlaying by remember { mutableStateOf(false) }
+                    VoiceAttachmentBubble(
+                        durationSeconds = 10,
+                        sizeBytes = metadata.compressedSize,
+                        isPlaying = isPlaying,
+                        onPlayToggle = { isPlaying = !isPlaying },
+                    )
+                }
+                org.meshtastic.feature.messaging.media.MediaType.IMAGE -> {
+                    ImageAttachmentBubble(
+                        sizeBytes = metadata.compressedSize,
+                        onClick = onClick,
+                    )
+                }
+                org.meshtastic.feature.messaging.media.MediaType.PDF -> {
+                    PdfAttachmentBubble(
+                        fileName = metadata.fileName ?: "document.pdf",
+                        sizeBytes = metadata.compressedSize,
+                        onClick = onClick,
+                    )
+                }
+            }
+        } else {
+            MediaTransferProgressBubble(
+                state = org.meshtastic.feature.messaging.media.MediaTransferState(
+                    transferId = envelope.transferId,
+                    mediaType = envelope.mediaType,
+                    currentChunk = envelope.chunkIndex,
+                    totalChunks = envelope.totalChunks,
+                    progress = envelope.chunkIndex.toFloat() / envelope.totalChunks.coerceAtLeast(1),
+                ),
+                onCancel = {},
+            )
+        }
+    } else {
+        MediaTransferProgressBubble(
+            state = org.meshtastic.feature.messaging.media.MediaTransferState(
+                transferId = envelope.transferId,
+                mediaType = envelope.mediaType,
+                currentChunk = envelope.chunkIndex,
+                totalChunks = envelope.totalChunks,
+                progress = envelope.chunkIndex.toFloat() / envelope.totalChunks.coerceAtLeast(1),
+            ),
+            onCancel = {},
+        )
     }
 }
