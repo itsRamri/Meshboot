@@ -40,7 +40,10 @@ kotlin {
             implementation(libs.jetbrains.compose.material3.adaptive.navigation3)
         }
 
-        androidMain.dependencies { implementation(libs.androidx.work.runtime.ktx) }
+        androidMain.dependencies {
+            implementation(libs.androidx.work.runtime.ktx)
+            implementation("androidx.exifinterface:exifinterface:1.4.2")
+        }
 
         commonTest.dependencies { implementation(libs.compose.multiplatform.ui.test) }
 
