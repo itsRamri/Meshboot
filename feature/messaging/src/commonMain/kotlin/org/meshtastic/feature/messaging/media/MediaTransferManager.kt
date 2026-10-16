@@ -86,7 +86,7 @@ class MediaTransferManager(
                                 MediaAttachment.Voice(
                                     filePath = savedPath,
                                     sizeBytes = outcome.assembledBytes.size.toLong(),
-                                    durationSeconds = ((outcome.assembledBytes.size / 1000).toInt()).coerceIn(1, 10),
+                                    durationSeconds = (outcome.assembledBytes.size / 1000).coerceIn(1, 10),
                                 )
 
                             MediaType.IMAGE ->

@@ -45,6 +45,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.rememberBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -560,7 +561,7 @@ fun MessageItem(
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                         }
-                        if (message.fromLocal) {
+                        if (message.fromLocal && !org.meshtastic.feature.messaging.media.MediaEnvelope.isMediaEnvelope(message.text)) {
                             MessageStatusLabel(
                                 status = message.status ?: MessageStatus.UNKNOWN,
                                 text = stringResource(statusString.second),
@@ -743,6 +744,14 @@ private fun MediaAttachmentItem(
     envelope: org.meshtastic.feature.messaging.media.MediaEnvelope,
     onClick: () -> Unit,
 ) {
+    val coroutineScope = rememberCoroutineScope()
+    val mediaPlatformService: org.meshtastic.feature.messaging.media.MediaPlatformService = org.koin.compose.koinInject()
+    val mediaTransferManager: org.meshtastic.feature.messaging.media.MediaTransferManager = org.koin.compose.koinInject()
+
+    val transferStates by mediaTransferManager.transferStates.collectAsStateWithLifecycle(initialValue = emptyMap())
+    val currentTransferState = transferStates[envelope.transferId]
+    val localAttachment = mediaTransferManager.getAttachment(envelope.transferId)
+
     if (envelope.chunkIndex == 1) {
         val metadata: org.meshtastic.feature.messaging.media.MediaMetadata? = remember(envelope.payload) {
             org.meshtastic.feature.messaging.media.MediaMetadata.decodeOrNull(
@@ -755,51 +764,63 @@ private fun MediaAttachmentItem(
             when (metadata.mediaType) {
                 org.meshtastic.feature.messaging.media.MediaType.VOICE -> {
                     var isPlaying by remember { mutableStateOf(false) }
+                    val durationSeconds = remember(metadata.fileName) {
+                        val match = Regex("voice_(\\d+)s").find(metadata.fileName)
+                        match?.groupValues?.getOrNull(1)?.toIntOrNull()
+                            ?: (metadata.compressedSize / 1000).toInt().coerceIn(1, 10)
+                    }
+
+                    val isLocalAvailable = localAttachment != null
+
                     VoiceAttachmentBubble(
-                        durationSeconds = 10,
+                        durationSeconds = durationSeconds,
                         sizeBytes = metadata.compressedSize,
                         isPlaying = isPlaying,
-                        onPlayToggle = { isPlaying = !isPlaying },
+                        onPlayToggle = {
+                            if (isPlaying) {
+                                mediaPlatformService?.pauseAudio()
+                                isPlaying = false
+                            } else {
+                                val path = localAttachment?.filePath
+                                if (path != null && mediaPlatformService != null) {
+                                    coroutineScope.launch {
+                                        mediaPlatformService.playAudio(path) {
+                                            isPlaying = false
+                                        }
+                                        isPlaying = true
+                                    }
+                                }
+                            }
+                        },
+                        transferState = currentTransferState,
+                        isLocalAvailable = isLocalAvailable,
+                        onDownload = {
+                            // Audio will automatically be marked completed upon receiving chunks or reconstructed
+                        },
                     )
                 }
                 org.meshtastic.feature.messaging.media.MediaType.IMAGE -> {
+                    val isLocalAvailable = localAttachment != null
                     ImageAttachmentBubble(
                         sizeBytes = metadata.compressedSize,
                         onClick = onClick,
+                        transferState = currentTransferState,
+                        isLocalAvailable = isLocalAvailable,
+                        onDownload = {},
                     )
                 }
                 org.meshtastic.feature.messaging.media.MediaType.PDF -> {
+                    val isLocalAvailable = localAttachment != null
                     PdfAttachmentBubble(
                         fileName = metadata.fileName,
                         sizeBytes = metadata.compressedSize,
                         onClick = onClick,
+                        transferState = currentTransferState,
+                        isLocalAvailable = isLocalAvailable,
+                        onDownload = {},
                     )
                 }
             }
-        } else {
-            MediaTransferProgressBubble(
-                state = org.meshtastic.feature.messaging.media.MediaTransferState(
-                    transferId = envelope.transferId,
-                    mediaType = envelope.mediaType,
-                    isOutgoing = false,
-                    currentChunk = envelope.chunkIndex,
-                    totalChunks = envelope.totalChunks,
-                    status = org.meshtastic.feature.messaging.media.TransferStatus.IN_PROGRESS,
-                ),
-                onCancel = {},
-            )
         }
-    } else {
-        MediaTransferProgressBubble(
-            state = org.meshtastic.feature.messaging.media.MediaTransferState(
-                transferId = envelope.transferId,
-                mediaType = envelope.mediaType,
-                isOutgoing = false,
-                currentChunk = envelope.chunkIndex,
-                totalChunks = envelope.totalChunks,
-                status = org.meshtastic.feature.messaging.media.TransferStatus.IN_PROGRESS,
-            ),
-            onCancel = {},
-        )
     }
 }

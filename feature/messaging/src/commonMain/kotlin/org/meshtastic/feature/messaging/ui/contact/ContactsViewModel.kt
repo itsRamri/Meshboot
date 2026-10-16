@@ -146,7 +146,24 @@ class ContactsViewModel(
                     },
                     longName = longName,
                     lastMessageTime = if (packetData.time != 0L) packetData.time else null,
-                    lastMessageText = if (fromLocal) packetData.text else "$shortName: ${packetData.text}",
+                    lastMessageText = run {
+                        val rawText = packetData.text
+                        val envelope = if (rawText != null) {
+                            org.meshtastic.feature.messaging.media.MediaEnvelope.parseOrNull(rawText)
+                        } else {
+                            null
+                        }
+                        val textToDisplay = if (envelope != null) {
+                            when (envelope.mediaType) {
+                                org.meshtastic.feature.messaging.media.MediaType.VOICE -> "\uD83C\uDFA4 Voice message"
+                                org.meshtastic.feature.messaging.media.MediaType.IMAGE -> "\uD83D\uDCF7 Photo"
+                                org.meshtastic.feature.messaging.media.MediaType.PDF -> "\uD83D\uDCC4 PDF document"
+                            }
+                        } else {
+                            rawText.orEmpty()
+                        }
+                        if (fromLocal) textToDisplay else "$shortName: $textToDisplay"
+                    },
                     unreadCount = packetRepository.getUnreadCount(contactKey),
                     messageCount = packetRepository.getMessageCount(contactKey),
                     isMuted = settings[contactKey]?.isMuted == true,

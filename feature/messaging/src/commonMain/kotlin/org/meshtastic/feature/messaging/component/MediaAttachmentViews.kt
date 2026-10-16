@@ -16,8 +16,10 @@
  */
 package org.meshtastic.feature.messaging.component
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -51,6 +53,7 @@ import org.meshtastic.core.resources.ic_notes
 import org.meshtastic.core.resources.ic_play_arrow
 import org.meshtastic.core.resources.media_cancel_transfer
 import org.meshtastic.core.resources.media_compressed_image
+import org.meshtastic.core.resources.media_download
 import org.meshtastic.core.resources.media_pause
 import org.meshtastic.core.resources.media_pdf_document
 import org.meshtastic.core.resources.media_play
@@ -58,13 +61,24 @@ import org.meshtastic.core.resources.media_transferring
 import org.meshtastic.core.resources.media_voice_message
 import org.meshtastic.core.ui.icon.Camera
 import org.meshtastic.core.ui.icon.Close
+import org.meshtastic.core.ui.icon.Download
 import org.meshtastic.core.ui.icon.FolderOpen
 import org.meshtastic.core.ui.icon.MeshtasticIcons
+import org.meshtastic.core.ui.icon.Pause
 import org.meshtastic.core.ui.icon.PlayArrow
 import org.meshtastic.feature.messaging.media.MediaAttachment
 import org.meshtastic.feature.messaging.media.MediaTransferState
 
-/** Renders a voice message card with play/pause controls, duration, and size. */
+/**
+ * Renders a unified WhatsApp-style voice message bubble.
+ *
+ * Supports:
+ * - Sender mode: Always playable from local audio file with playback progress, duration, size,
+ *   and sending transfer progress indicator when active.
+ * - Receiver mode: Shows Download action if audio is not yet local/verified, transitioning to Play
+ *   once completed. Shows circular progress while downloading/reassembling.
+ */
+@Suppress("LongMethod", "CyclomaticComplexMethod")
 @Composable
 fun VoiceAttachmentBubble(
     durationSeconds: Int,
@@ -72,53 +86,13 @@ fun VoiceAttachmentBubble(
     isPlaying: Boolean,
     onPlayToggle: () -> Unit,
     modifier: Modifier = Modifier,
+    transferState: MediaTransferState? = null,
+    isLocalAvailable: Boolean = true,
+    onDownload: () -> Unit = {},
 ) {
     Card(
         modifier = modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-    ) {
-        Row(
-            modifier = Modifier.padding(8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            IconButton(
-                onClick = onPlayToggle,
-                modifier = Modifier.size(36.dp),
-            ) {
-                Icon(
-                    imageVector = MeshtasticIcons.PlayArrow,
-                    contentDescription = if (isPlaying) stringResource(Res.string.media_pause) else stringResource(Res.string.media_play),
-                    tint = MaterialTheme.colorScheme.primary,
-                )
-            }
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = stringResource(Res.string.media_voice_message),
-                    style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = FontWeight.SemiBold,
-                )
-                Text(
-                    text = "${durationSeconds}s • ${formatByteSize(sizeBytes)}",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-        }
-    }
-}
-
-/** Renders an image attachment card with size and click-to-preview action. */
-@Composable
-fun ImageAttachmentBubble(
-    sizeBytes: Long,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    Card(
-        modifier = modifier.fillMaxWidth().clickable(onClick = onClick),
-        shape = RoundedCornerShape(12.dp),
+        shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
     ) {
         Row(
@@ -126,39 +100,226 @@ fun ImageAttachmentBubble(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-            Icon(
-                imageVector = MeshtasticIcons.Camera,
-                contentDescription = stringResource(Res.string.media_compressed_image),
-                modifier = Modifier.size(32.dp),
-                tint = MaterialTheme.colorScheme.primary,
-            )
+            val isTransferring = transferState != null && transferState.status == org.meshtastic.feature.messaging.media.TransferStatus.IN_PROGRESS
+            val progress = transferState?.progress ?: 0f
+
+            // Action button (Play/Pause, Download, or Circular Progress)
+            Box(
+                contentAlignment = Alignment.Center,
+                modifier = Modifier.size(44.dp),
+            ) {
+                if (isTransferring) {
+                    androidx.compose.material3.CircularProgressIndicator(
+                        progress = { progress },
+                        modifier = Modifier.size(40.dp),
+                        color = MaterialTheme.colorScheme.primary,
+                        strokeWidth = 3.dp,
+                    )
+                }
+
+                if (!isLocalAvailable && !isTransferring) {
+                    IconButton(
+                        onClick = onDownload,
+                        modifier = Modifier.size(36.dp),
+                    ) {
+                        Icon(
+                            imageVector = MeshtasticIcons.Download,
+                            contentDescription = stringResource(Res.string.media_download),
+                            tint = MaterialTheme.colorScheme.primary,
+                        )
+                    }
+                } else {
+                    IconButton(
+                        onClick = onPlayToggle,
+                        enabled = isLocalAvailable,
+                        modifier = Modifier.size(36.dp),
+                    ) {
+                        Icon(
+                            imageVector = if (isPlaying) MeshtasticIcons.Pause else MeshtasticIcons.PlayArrow,
+                            contentDescription = if (isPlaying) stringResource(Res.string.media_pause) else stringResource(Res.string.media_play),
+                            tint = if (isLocalAvailable) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                        )
+                    }
+                }
+            }
+
+            // Body: Title/Waveform and Status Info
+            Column(modifier = Modifier.weight(1f)) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    modifier = Modifier.fillMaxWidth().height(16.dp),
+                ) {
+                    // Stylized voice waveform bars (WhatsApp style)
+                    val barCount = 20
+                    for (i in 0 until barCount) {
+                        val normalizedHeight = 0.3f + 0.7f * kotlin.math.abs(kotlin.math.sin(i * 0.45f)).toFloat()
+                        val isPlayed = isPlaying && (i < (barCount / 2))
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .height((14 * normalizedHeight).dp)
+                                .clip(RoundedCornerShape(1.dp))
+                                .background(
+                                    if (isPlayed) {
+                                        MaterialTheme.colorScheme.primary
+                                    } else {
+                                        MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
+                                    },
+                                ),
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(4.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    val minutes = durationSeconds / 60
+                    val seconds = durationSeconds % 60
+                    val durationFormatted = "$minutes:${if (seconds < 10) "0$seconds" else "$seconds"}"
+
+                    Text(
+                        text = "$durationFormatted • ${formatByteSize(sizeBytes)}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+
+                    if (isTransferring) {
+                        val percent = (progress * 100).toInt()
+                        Text(
+                            text = "$percent%",
+                            style = MaterialTheme.typography.bodySmall,
+                            fontWeight = FontWeight.Medium,
+                            color = MaterialTheme.colorScheme.primary,
+                        )
+                    } else if (!isLocalAvailable) {
+                        Text(
+                            text = stringResource(Res.string.media_download),
+                            style = MaterialTheme.typography.bodySmall,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.primary,
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+/** Renders an image attachment card with size, circular progress, and open/download action. */
+@Composable
+fun ImageAttachmentBubble(
+    sizeBytes: Long,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    transferState: MediaTransferState? = null,
+    isLocalAvailable: Boolean = true,
+    onDownload: () -> Unit = {},
+) {
+    val isTransferring = transferState != null && transferState.status == org.meshtastic.feature.messaging.media.TransferStatus.IN_PROGRESS
+    val progress = transferState?.progress ?: 0f
+
+    Card(
+        modifier = modifier.fillMaxWidth().clickable(enabled = isLocalAvailable && !isTransferring, onClick = onClick),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+    ) {
+        Row(
+            modifier = Modifier.padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            Box(
+                contentAlignment = Alignment.Center,
+                modifier = Modifier.size(44.dp),
+            ) {
+                if (isTransferring) {
+                    androidx.compose.material3.CircularProgressIndicator(
+                        progress = { progress },
+                        modifier = Modifier.size(40.dp),
+                        color = MaterialTheme.colorScheme.primary,
+                        strokeWidth = 3.dp,
+                    )
+                }
+
+                if (!isLocalAvailable && !isTransferring) {
+                    IconButton(onClick = onDownload, modifier = Modifier.size(36.dp)) {
+                        Icon(
+                            imageVector = MeshtasticIcons.Download,
+                            contentDescription = stringResource(Res.string.media_download),
+                            tint = MaterialTheme.colorScheme.primary,
+                        )
+                    }
+                } else {
+                    Icon(
+                        imageVector = MeshtasticIcons.Camera,
+                        contentDescription = stringResource(Res.string.media_compressed_image),
+                        modifier = Modifier.size(32.dp),
+                        tint = MaterialTheme.colorScheme.primary,
+                    )
+                }
+            }
+
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = stringResource(Res.string.media_compressed_image),
                     style = MaterialTheme.typography.bodyMedium,
                     fontWeight = FontWeight.SemiBold,
                 )
-                Text(
-                    text = formatByteSize(sizeBytes),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+                Spacer(modifier = Modifier.height(2.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        text = formatByteSize(sizeBytes),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    if (isTransferring) {
+                        val percent = (progress * 100).toInt()
+                        Text(
+                            text = "$percent%",
+                            style = MaterialTheme.typography.bodySmall,
+                            fontWeight = FontWeight.Medium,
+                            color = MaterialTheme.colorScheme.primary,
+                        )
+                    } else if (!isLocalAvailable) {
+                        Text(
+                            text = stringResource(Res.string.media_download),
+                            style = MaterialTheme.typography.bodySmall,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.primary,
+                        )
+                    }
+                }
             }
         }
     }
 }
 
-/** Renders a PDF document card with filename, page count, and open action. */
+/** Renders a PDF document card with filename, size, circular progress, and open/download action. */
 @Composable
 fun PdfAttachmentBubble(
     fileName: String,
     sizeBytes: Long,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    transferState: MediaTransferState? = null,
+    isLocalAvailable: Boolean = true,
+    onDownload: () -> Unit = {},
 ) {
+    val isTransferring = transferState != null && transferState.status == org.meshtastic.feature.messaging.media.TransferStatus.IN_PROGRESS
+    val progress = transferState?.progress ?: 0f
+
     Card(
-        modifier = modifier.fillMaxWidth().clickable(onClick = onClick),
-        shape = RoundedCornerShape(12.dp),
+        modifier = modifier.fillMaxWidth().clickable(enabled = isLocalAvailable && !isTransferring, onClick = onClick),
+        shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
     ) {
         Row(
@@ -166,12 +327,37 @@ fun PdfAttachmentBubble(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-            Icon(
-                imageVector = MeshtasticIcons.FolderOpen,
-                contentDescription = stringResource(Res.string.media_pdf_document),
-                modifier = Modifier.size(32.dp),
-                tint = MaterialTheme.colorScheme.primary,
-            )
+            Box(
+                contentAlignment = Alignment.Center,
+                modifier = Modifier.size(44.dp),
+            ) {
+                if (isTransferring) {
+                    androidx.compose.material3.CircularProgressIndicator(
+                        progress = { progress },
+                        modifier = Modifier.size(40.dp),
+                        color = MaterialTheme.colorScheme.primary,
+                        strokeWidth = 3.dp,
+                    )
+                }
+
+                if (!isLocalAvailable && !isTransferring) {
+                    IconButton(onClick = onDownload, modifier = Modifier.size(36.dp)) {
+                        Icon(
+                            imageVector = MeshtasticIcons.Download,
+                            contentDescription = stringResource(Res.string.media_download),
+                            tint = MaterialTheme.colorScheme.primary,
+                        )
+                    }
+                } else {
+                    Icon(
+                        imageVector = MeshtasticIcons.FolderOpen,
+                        contentDescription = stringResource(Res.string.media_pdf_document),
+                        modifier = Modifier.size(32.dp),
+                        tint = MaterialTheme.colorScheme.primary,
+                    )
+                }
+            }
+
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = fileName,
@@ -180,11 +366,34 @@ fun PdfAttachmentBubble(
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
-                Text(
-                    text = "${stringResource(Res.string.media_pdf_document)} • ${formatByteSize(sizeBytes)}",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+                Spacer(modifier = Modifier.height(2.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        text = formatByteSize(sizeBytes),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    if (isTransferring) {
+                        val percent = (progress * 100).toInt()
+                        Text(
+                            text = "$percent%",
+                            style = MaterialTheme.typography.bodySmall,
+                            fontWeight = FontWeight.Medium,
+                            color = MaterialTheme.colorScheme.primary,
+                        )
+                    } else if (!isLocalAvailable) {
+                        Text(
+                            text = stringResource(Res.string.media_download),
+                            style = MaterialTheme.typography.bodySmall,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.primary,
+                        )
+                    }
+                }
             }
         }
     }

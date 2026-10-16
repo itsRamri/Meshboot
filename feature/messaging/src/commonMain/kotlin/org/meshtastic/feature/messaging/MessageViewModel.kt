@@ -21,6 +21,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.paging.PagingData
 import androidx.paging.cachedIn
+import androidx.paging.filter
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.Job
@@ -229,6 +231,12 @@ class MessageViewModel(
         }
             .flatMapLatest { (contactKey, includeFiltered) ->
                 packetRepository.getMessagesFromPaged(contactKey, includeFiltered, ::getNode)
+            }
+            .map { pagingData ->
+                pagingData.filter { msg ->
+                    val envelope = org.meshtastic.feature.messaging.media.MediaEnvelope.parseOrNull(msg.text)
+                    envelope == null || envelope.chunkIndex == 1
+                }
             }
             .cachedIn(viewModelScope)
 

@@ -132,19 +132,21 @@ class AndroidMediaPlatformService(private val context: Context) : MediaPlatformS
         }
     }
 
-    override suspend fun cancelVoiceRecording() = withContext(Dispatchers.IO) {
-        try {
-            mediaRecorder?.run {
-                try {
-                    stop()
-                } catch (_: Exception) {}
-                release()
+    override suspend fun cancelVoiceRecording() {
+        withContext(Dispatchers.IO) {
+            try {
+                mediaRecorder?.run {
+                    try {
+                        stop()
+                    } catch (_: Exception) {}
+                    release()
+                }
+            } catch (e: Exception) {
+                Logger.w(e) { "Error releasing media recorder" }
+            } finally {
+                mediaRecorder = null
+                cleanupCurrentRecordingFile()
             }
-        } catch (e: Exception) {
-            Logger.w(e) { "Error releasing media recorder" }
-        } finally {
-            mediaRecorder = null
-            cleanupCurrentRecordingFile()
         }
     }
 

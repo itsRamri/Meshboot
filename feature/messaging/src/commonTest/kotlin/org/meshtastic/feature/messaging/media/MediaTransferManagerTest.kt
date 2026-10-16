@@ -155,4 +155,46 @@ class MediaTransferManagerTest {
         assertEquals(TransferStatus.COMPLETED, state.status)
         assertEquals(plan.totalChunks, state.currentChunk)
     }
+
+    @Test
+    fun `photo transfer completes and preserves image dimensions and MIME type`() = runTest {
+        val fakeSendUseCase = FakeSendMessageUseCase()
+        val fakePlatformService = FakeMediaPlatformService()
+        val manager = MediaTransferManager(fakeSendUseCase, fakePlatformService)
+
+        val rawImage = "Compressed WebP Image Bytes".encodeToByteArray()
+        val plan = MediaChunker.chunk(MediaType.IMAGE, rawImage, 1000L, "photo.webp", "image/webp")
+
+        for (envelope in plan.envelopes) {
+            manager.processIncomingMessage(envelope.toMessageText())
+        }
+
+        val state = manager.transferStates.value[plan.transferId]
+        assertNotNull(state)
+        assertEquals(TransferStatus.COMPLETED, state.status)
+        assertNotNull(state.attachment)
+        assertIs<MediaAttachment.Image>(state.attachment)
+        assertEquals("image/webp", (state.attachment as MediaAttachment.Image).mimeType)
+    }
+
+    @Test
+    fun `pdf document transfer completes and preserves filename`() = runTest {
+        val fakeSendUseCase = FakeSendMessageUseCase()
+        val fakePlatformService = FakeMediaPlatformService()
+        val manager = MediaTransferManager(fakeSendUseCase, fakePlatformService)
+
+        val rawPdf = "%PDF-1.4 dummy pdf bytes".encodeToByteArray()
+        val plan = MediaChunker.chunk(MediaType.PDF, rawPdf, 500L, "guide.pdf", "application/pdf")
+
+        for (envelope in plan.envelopes) {
+            manager.processIncomingMessage(envelope.toMessageText())
+        }
+
+        val state = manager.transferStates.value[plan.transferId]
+        assertNotNull(state)
+        assertEquals(TransferStatus.COMPLETED, state.status)
+        assertNotNull(state.attachment)
+        assertIs<MediaAttachment.Pdf>(state.attachment)
+        assertEquals("guide.pdf", (state.attachment as MediaAttachment.Pdf).fileName)
+    }
 }

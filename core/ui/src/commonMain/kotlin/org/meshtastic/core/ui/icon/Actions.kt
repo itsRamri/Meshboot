@@ -42,6 +42,7 @@ import org.meshtastic.core.resources.ic_mark_chat_unread
 import org.meshtastic.core.resources.ic_more_vert
 import org.meshtastic.core.resources.ic_offline_share
 import org.meshtastic.core.resources.ic_output
+import org.meshtastic.core.resources.ic_pause
 import org.meshtastic.core.resources.ic_play_arrow
 import org.meshtastic.core.resources.ic_power_settings_new
 import org.meshtastic.core.resources.ic_qr_code
@@ -130,6 +131,8 @@ val MeshtasticIcons.FileDownload: ImageVector
     @Composable get() = vectorResource(Res.drawable.ic_file_download)
 val MeshtasticIcons.PlayArrow: ImageVector
     @Composable get() = vectorResource(Res.drawable.ic_play_arrow)
+val MeshtasticIcons.Pause: ImageVector
+    @Composable get() = vectorResource(Res.drawable.ic_pause)
 val MeshtasticIcons.FilterAlt: ImageVector
     @Composable get() = vectorResource(Res.drawable.ic_filter_alt)
 val MeshtasticIcons.FilterAltOff: ImageVector

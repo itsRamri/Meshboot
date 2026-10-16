@@ -1103,6 +1103,7 @@
     <string name="media_stop_recording">Stop Recording</string>
     <string name="media_transfer_complete">Transfer Complete</string>
     <string name="media_transfer_failed">Transfer Failed</string>
+    <string name="media_download">Download</string>
     <string name="media_transferring">Transferring %1$d/%2$d (%3$s)</string>
     <string name="media_voice_message">Voice Message</string>
     <!-- MESH -->
