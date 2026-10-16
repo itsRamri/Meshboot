@@ -122,8 +122,10 @@ import org.meshtastic.core.ui.util.isFromSoftKeyboard
 import org.meshtastic.core.ui.util.rememberOpenFileLauncher
 import org.meshtastic.feature.messaging.component.MediaPreviewDialog
 import org.meshtastic.feature.messaging.component.VoiceRecordingDialog
+import org.meshtastic.feature.messaging.media.CompressedImageResult
 import org.meshtastic.feature.messaging.media.MediaAttachment
 import org.meshtastic.feature.messaging.media.MediaPlatformService
+import org.meshtastic.feature.messaging.media.ProcessedPdfResult
 import org.meshtastic.feature.messaging.component.ActionModeTopBar
 import org.meshtastic.feature.messaging.component.DeleteMessageDialog
 import org.meshtastic.feature.messaging.component.FormattingToolbar
@@ -193,25 +195,22 @@ fun MessageScreen(
     var showDeleteDialog by rememberSaveable { mutableStateOf(false) }
     var sharedContact by rememberSaveable { mutableStateOf<Node?>(null) }
     var showVoiceDialog by rememberSaveable { mutableStateOf(false) }
-    var pendingAttachment by remember { mutableStateOf<MediaAttachment?>(null) }
+    var pendingImageResult by remember { mutableStateOf<CompressedImageResult?>(null) }
+    var pendingPdfResult by remember { mutableStateOf<ProcessedPdfResult?>(null) }
     val mediaPlatformService: MediaPlatformService = koinInject()
     val pickImageLauncher = rememberOpenFileLauncher { uri ->
         if (uri != null) {
             coroutineScope.launch {
-                val processed = mediaPlatformService.compressImage(uri.toString())
-                if (processed != null) {
-                    pendingAttachment = processed
-                }
+                mediaPlatformService.compressImage(uri.toString())
+                    .onSuccess { pendingImageResult = it }
             }
         }
     }
     val pickPdfLauncher = rememberOpenFileLauncher { uri ->
         if (uri != null) {
             coroutineScope.launch {
-                val processed = mediaPlatformService.inspectAndOptimizePdf(uri.toString())
-                if (processed != null) {
-                    pendingAttachment = processed
-                }
+                mediaPlatformService.inspectAndOptimizePdf(uri.toString())
+                    .onSuccess { pendingPdfResult = it }
             }
         }
     }
@@ -412,13 +411,13 @@ fun MessageScreen(
                     is MessageScreenEvent.ToggleShowTranslated -> viewModel.toggleShowTranslated(event.message)
 
                     is MessageScreenEvent.SendVoiceRecording ->
-                        viewModel.sendVoiceRecording(contactKey, event.audioData, event.durationSeconds)
+                        viewModel.sendVoiceRecording(event.result, contactKey)
 
                     is MessageScreenEvent.SendCompressedImage ->
-                        viewModel.sendCompressedImage(contactKey, event.imageAttachment)
+                        viewModel.sendCompressedImage(event.result, contactKey)
 
                     is MessageScreenEvent.SendProcessedPdf ->
-                        viewModel.sendProcessedPdf(contactKey, event.pdfAttachment)
+                        viewModel.sendProcessedPdf(event.result, contactKey)
 
                     is MessageScreenEvent.CancelMediaTransfer ->
                         viewModel.cancelMediaTransfer(event.transferId)
@@ -440,24 +439,33 @@ fun MessageScreen(
         VoiceRecordingDialog(
             mediaPlatformService = mediaPlatformService,
             onDismiss = { showVoiceDialog = false },
-            onSend = { bytes, duration ->
+            onSendRecording = { result ->
                 showVoiceDialog = false
-                onEvent(MessageScreenEvent.SendVoiceRecording(bytes, duration))
+                onEvent(MessageScreenEvent.SendVoiceRecording(result))
             },
         )
     }
 
-    pendingAttachment?.let { attachment ->
+    pendingImageResult?.let { imgResult ->
         MediaPreviewDialog(
-            attachment = attachment,
-            onDismiss = { pendingAttachment = null },
-            onSend = {
-                when (attachment) {
-                    is MediaAttachment.Image -> onEvent(MessageScreenEvent.SendCompressedImage(attachment))
-                    is MediaAttachment.Pdf -> onEvent(MessageScreenEvent.SendProcessedPdf(attachment))
-                    else -> Unit
-                }
-                pendingAttachment = null
+            mediaType = org.meshtastic.feature.messaging.media.MediaType.IMAGE,
+            imageResult = imgResult,
+            onDismiss = { pendingImageResult = null },
+            onConfirmSend = {
+                onEvent(MessageScreenEvent.SendCompressedImage(imgResult))
+                pendingImageResult = null
+            },
+        )
+    }
+
+    pendingPdfResult?.let { pdfResult ->
+        MediaPreviewDialog(
+            mediaType = org.meshtastic.feature.messaging.media.MediaType.PDF,
+            pdfResult = pdfResult,
+            onDismiss = { pendingPdfResult = null },
+            onConfirmSend = {
+                onEvent(MessageScreenEvent.SendProcessedPdf(pdfResult))
+                pendingPdfResult = null
             },
         )
     }

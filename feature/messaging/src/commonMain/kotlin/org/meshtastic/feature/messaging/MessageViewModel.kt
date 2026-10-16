@@ -67,6 +67,7 @@ import org.meshtastic.core.resources.translation_not_required
 import org.meshtastic.core.ui.util.SnackbarManager
 import org.meshtastic.core.ui.viewmodel.errorEventFlow
 import org.meshtastic.core.ui.viewmodel.safeLaunch
+import org.meshtastic.core.ui.viewmodel.stateInWhileSubscribed
 import org.meshtastic.feature.messaging.translation.DownloadResult
 import org.meshtastic.feature.messaging.translation.MessageTranslationService
 import org.meshtastic.feature.messaging.translation.TranslationResult
@@ -440,12 +441,13 @@ class MessageViewModel(
     }
 
     fun sendVoiceRecording(result: RecordedAudioResult, contactKey: String) {
+        val ext = if (result.mimeType.contains("ogg")) "ogg" else "mp4"
         val plan =
             MediaChunker.chunk(
                 mediaType = MediaType.VOICE,
                 compressedBytes = result.rawBytes,
                 originalSize = result.sizeBytes,
-                fileName = "voice_${result.durationSeconds}s.ogg",
+                fileName = "voice_${result.durationSeconds}s.$ext",
             )
         mediaTransferManager.registerLocalAttachment(
             plan.transferId,

@@ -462,7 +462,8 @@ fun MessageItem(
                             color = contentColor,
                         )
                     } else if (org.meshtastic.feature.messaging.media.MediaEnvelope.isMediaEnvelope(message.text)) {
-                        val envelope = remember(message.text) { org.meshtastic.feature.messaging.media.MediaEnvelope.parse(message.text) }
+                        val envelope: org.meshtastic.feature.messaging.media.MediaEnvelope? =
+                            remember(message.text) { org.meshtastic.feature.messaging.media.MediaEnvelope.parseOrNull(message.text) }
                         if (envelope != null) {
                             MediaAttachmentItem(
                                 envelope = envelope,
@@ -743,8 +744,12 @@ private fun MediaAttachmentItem(
     onClick: () -> Unit,
 ) {
     if (envelope.chunkIndex == 1) {
-        val metadata = remember(envelope.payload) {
-            org.meshtastic.feature.messaging.media.MediaMetadata.deserialize(envelope.payload)
+        val metadata: org.meshtastic.feature.messaging.media.MediaMetadata? = remember(envelope.payload) {
+            org.meshtastic.feature.messaging.media.MediaMetadata.decodeOrNull(
+                transferId = envelope.transferId,
+                mediaType = envelope.mediaType,
+                bytes = envelope.payload,
+            )
         }
         if (metadata != null) {
             when (metadata.mediaType) {
@@ -765,7 +770,7 @@ private fun MediaAttachmentItem(
                 }
                 org.meshtastic.feature.messaging.media.MediaType.PDF -> {
                     PdfAttachmentBubble(
-                        fileName = metadata.fileName ?: "document.pdf",
+                        fileName = metadata.fileName,
                         sizeBytes = metadata.compressedSize,
                         onClick = onClick,
                     )
@@ -776,9 +781,10 @@ private fun MediaAttachmentItem(
                 state = org.meshtastic.feature.messaging.media.MediaTransferState(
                     transferId = envelope.transferId,
                     mediaType = envelope.mediaType,
+                    isOutgoing = false,
                     currentChunk = envelope.chunkIndex,
                     totalChunks = envelope.totalChunks,
-                    progress = envelope.chunkIndex.toFloat() / envelope.totalChunks.coerceAtLeast(1),
+                    status = org.meshtastic.feature.messaging.media.TransferStatus.IN_PROGRESS,
                 ),
                 onCancel = {},
             )
@@ -788,9 +794,10 @@ private fun MediaAttachmentItem(
             state = org.meshtastic.feature.messaging.media.MediaTransferState(
                 transferId = envelope.transferId,
                 mediaType = envelope.mediaType,
+                isOutgoing = false,
                 currentChunk = envelope.chunkIndex,
                 totalChunks = envelope.totalChunks,
-                progress = envelope.chunkIndex.toFloat() / envelope.totalChunks.coerceAtLeast(1),
+                status = org.meshtastic.feature.messaging.media.TransferStatus.IN_PROGRESS,
             ),
             onCancel = {},
         )

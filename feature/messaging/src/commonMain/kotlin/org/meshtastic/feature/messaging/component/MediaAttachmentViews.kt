@@ -48,7 +48,6 @@ import org.meshtastic.core.resources.Res
 import org.meshtastic.core.resources.ic_close
 import org.meshtastic.core.resources.ic_mic
 import org.meshtastic.core.resources.ic_notes
-import org.meshtastic.core.resources.ic_photo
 import org.meshtastic.core.resources.ic_play_arrow
 import org.meshtastic.core.resources.media_cancel_transfer
 import org.meshtastic.core.resources.media_compressed_image
@@ -57,6 +56,9 @@ import org.meshtastic.core.resources.media_pdf_document
 import org.meshtastic.core.resources.media_play
 import org.meshtastic.core.resources.media_transferring
 import org.meshtastic.core.resources.media_voice_message
+import org.meshtastic.core.ui.icon.Camera
+import org.meshtastic.core.ui.icon.Close
+import org.meshtastic.core.ui.icon.FolderOpen
 import org.meshtastic.core.ui.icon.MeshtasticIcons
 import org.meshtastic.core.ui.icon.PlayArrow
 import org.meshtastic.feature.messaging.media.MediaAttachment

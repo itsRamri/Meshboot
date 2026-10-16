@@ -44,6 +44,7 @@ sealed interface ReassemblyOutcome {
 
     data class Completed(
         val transferId: String,
+        val totalChunks: Int,
         val metadata: MediaMetadata,
         val assembledBytes: ByteArray,
     ) : ReassemblyOutcome {
@@ -154,7 +155,7 @@ class ReassemblySession(
             }
 
             status = TransferStatus.COMPLETED
-            return ReassemblyOutcome.Completed(transferId, meta, assembled)
+            return ReassemblyOutcome.Completed(transferId, totalChunks, meta, assembled)
         }
 
         return ReassemblyOutcome.Accepted(

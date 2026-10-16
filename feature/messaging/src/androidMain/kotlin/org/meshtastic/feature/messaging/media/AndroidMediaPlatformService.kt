@@ -51,7 +51,9 @@ class AndroidMediaPlatformService(private val context: Context) : MediaPlatformS
             cancelVoiceRecording()
 
             val tempDir = File(context.cacheDir, TEMP_DIR_NAME).apply { mkdirs() }
-            val outputFile = File(tempDir, "rec_${System.currentTimeMillis()}.ogg")
+            val isOpusSupported = Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q
+            val ext = if (isOpusSupported) "ogg" else "mp4"
+            val outputFile = File(tempDir, "rec_${System.currentTimeMillis()}.$ext")
             currentRecordingFile = outputFile
 
             @Suppress("DEPRECATION")
