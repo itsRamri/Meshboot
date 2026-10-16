@@ -114,6 +114,7 @@ class AndroidMediaPlatformService(private val context: Context) : MediaPlatformS
             }
 
             val isOpus = Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q
+            val rawBytes = file.readBytes()
             val result =
                 RecordedAudioResult(
                     filePath = file.absolutePath,
