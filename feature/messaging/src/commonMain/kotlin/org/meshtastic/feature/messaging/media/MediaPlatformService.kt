@@ -21,6 +21,8 @@ data class RecordedAudioResult(
     val durationSeconds: Int,
     val sizeBytes: Long,
     val rawBytes: ByteArray,
+    val codec: String = "Opus",
+    val mimeType: String = "audio/ogg",
 ) {
     override fun equals(other: Any?): Boolean {
         if (this === other) return true

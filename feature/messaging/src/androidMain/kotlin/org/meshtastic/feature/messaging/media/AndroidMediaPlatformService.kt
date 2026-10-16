@@ -111,13 +111,15 @@ class AndroidMediaPlatformService(private val context: Context) : MediaPlatformS
                 return@withContext Result.failure(IllegalStateException("Empty recording file"))
             }
 
-            val rawBytes = file.readBytes()
+            val isOpus = Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q
             val result =
                 RecordedAudioResult(
                     filePath = file.absolutePath,
                     durationSeconds = durationSeconds,
                     sizeBytes = file.length(),
                     rawBytes = rawBytes,
+                    codec = if (isOpus) "Opus" else "AAC",
+                    mimeType = if (isOpus) "audio/ogg" else "audio/mp4",
                 )
             Result.success(result)
         } catch (e: Exception) {

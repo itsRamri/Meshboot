@@ -230,7 +230,7 @@ fun VoiceRecordingDialog(
                                 )
                                 val kbStr = NumberFormatter.format(result.sizeBytes.toFloat() / 1024, 1)
                                 Text(
-                                    text = stringResource(Res.string.media_compressed_size, "$kbStr KB"),
+                                    text = "${stringResource(Res.string.media_compressed_size, "$kbStr KB")} • ${result.codec}",
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
