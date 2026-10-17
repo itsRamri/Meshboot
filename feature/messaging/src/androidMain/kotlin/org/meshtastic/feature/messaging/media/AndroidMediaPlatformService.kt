@@ -77,7 +77,7 @@ class AndroidMediaPlatformService(private val context: Context) : MediaPlatformS
                 setAudioSamplingRate(VOICE_SAMPLING_RATE_HZ)
                 setAudioEncodingBitRate(VOICE_ENCODING_BITRATE_BPS)
                 setOutputFile(outputFile.absolutePath)
-                setMaxDuration(MAX_VOICE_DURATION_MS)
+                setMaxDuration(MAX_VOICE_SAFETY_DURATION_MS)
                 prepare()
                 start()
             }
@@ -215,13 +215,26 @@ class AndroidMediaPlatformService(private val context: Context) : MediaPlatformS
         maxDimension: Int,
         quality: Int,
     ): Result<CompressedImageResult> = withContext(Dispatchers.IO) {
+        var cachedFile: File? = null
         try {
             val uri = Uri.parse(uriString)
-            val originalSize = getFileSizeFromUri(uri)
+            // Immediately copy content stream to local app cache to avoid losing ephemeral picker URI access
+            cachedFile = copyUriToCache(uri, prefix = "pick_img_", extension = ".tmp")
+            val workingUri = if (cachedFile != null && cachedFile.exists() && cachedFile.length() > 0) {
+                Uri.fromFile(cachedFile)
+            } else {
+                uri
+            }
+
+            val originalSize = if (cachedFile != null && cachedFile.exists() && cachedFile.length() > 0) {
+                cachedFile.length()
+            } else {
+                getFileSizeFromUri(uri)
+            }
 
             // Step 1: Decode bounds only (prevent OOM)
             val options = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-            openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, options) }
+            openInputStream(workingUri)?.use { BitmapFactory.decodeStream(it, null, options) }
 
             val rawWidth = options.outWidth
             val rawHeight = options.outHeight
@@ -238,11 +251,11 @@ class AndroidMediaPlatformService(private val context: Context) : MediaPlatformS
             // Step 3: Decode sampled bitmap
             val decodeOptions = BitmapFactory.Options().apply { inSampleSize = sampleSize }
             val sampledBitmap =
-                openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, decodeOptions) }
+                openInputStream(workingUri)?.use { BitmapFactory.decodeStream(it, null, decodeOptions) }
                     ?: return@withContext Result.failure(IllegalStateException("Failed to decode sampled image"))
 
             // Step 4: Correct EXIF rotation
-            val rotation = getExifOrientation(uri)
+            val rotation = getExifOrientation(workingUri)
             val orientedBitmap =
                 if (rotation != 0) {
                     val matrix = Matrix().apply { postRotate(rotation.toFloat()) }
@@ -295,6 +308,8 @@ class AndroidMediaPlatformService(private val context: Context) : MediaPlatformS
         } catch (e: Exception) {
             Logger.e(e) { "Failed to compress image" }
             Result.failure(e)
+        } finally {
+            cachedFile?.delete()
         }
     }
 
@@ -346,13 +361,14 @@ class AndroidMediaPlatformService(private val context: Context) : MediaPlatformS
             val tempFile = File(tempDir, "doc_${System.currentTimeMillis()}.pdf")
             FileOutputStream(tempFile).use { it.write(bytes) }
 
+            val resolvedName = resolveFileName(uri, "document.pdf")
             Result.success(
                 ProcessedPdfResult(
                     filePath = tempFile.absolutePath,
                     originalSize = bytes.size.toLong(),
                     compressedSize = bytes.size.toLong(),
                     pageCount = pageCount,
-                    fileName = "document.pdf",
+                    fileName = resolvedName,
                     rawBytes = bytes,
                 ),
             )
@@ -391,6 +407,73 @@ class AndroidMediaPlatformService(private val context: Context) : MediaPlatformS
         }
     }
 
+    override fun openMediaFile(filePath: String, mimeType: String): Result<Unit> {
+        return try {
+            val file = File(filePath)
+            if (!file.exists()) {
+                return Result.failure(java.io.FileNotFoundException("File does not exist: $filePath"))
+            }
+
+            val uri: Uri = try {
+                androidx.core.content.FileProvider.getUriForFile(
+                    context,
+                    "${context.packageName}.fileprovider",
+                    file,
+                )
+            } catch (e: Exception) {
+                // Fallback to Uri.fromFile if fileprovider isn't configured for this path
+                Uri.fromFile(file)
+            }
+
+            val intent = android.content.Intent(android.content.Intent.ACTION_VIEW).apply {
+                setDataAndType(uri, mimeType)
+                addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+
+            if (intent.resolveActivity(context.packageManager) != null) {
+                context.startActivity(intent)
+                Result.success(Unit)
+            } else {
+                Result.failure(android.content.ActivityNotFoundException("No compatible app to open $mimeType"))
+            }
+        } catch (e: Exception) {
+            Logger.e(e) { "Failed to open media file $filePath" }
+            Result.failure(e)
+        }
+    }
+
+    private fun copyUriToCache(uri: Uri, prefix: String, extension: String): File? = try {
+        val tempDir = File(context.cacheDir, TEMP_DIR_NAME).apply { mkdirs() }
+        val tempFile = File(tempDir, "${prefix}${System.currentTimeMillis()}$extension")
+        openInputStream(uri)?.use { input ->
+            FileOutputStream(tempFile).use { output ->
+                input.copyTo(output)
+            }
+        }
+        if (tempFile.exists() && tempFile.length() > 0) tempFile else null
+    } catch (e: Exception) {
+        Logger.w(e) { "Could not copy URI $uri to cache file" }
+        null
+    }
+
+    private fun resolveFileName(uri: Uri, fallback: String): String = try {
+        if (uri.scheme == "content") {
+            context.contentResolver.query(uri, arrayOf(android.provider.OpenableColumns.DISPLAY_NAME), null, null, null)?.use { cursor ->
+                if (cursor.moveToFirst()) {
+                    val idx = cursor.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME)
+                    if (idx != -1) {
+                        val name = cursor.getString(idx)
+                        if (!name.isNullOrBlank()) return@try MediaMetadata.sanitizeFileName(name)
+                    }
+                }
+            }
+        }
+        uri.lastPathSegment?.let { MediaMetadata.sanitizeFileName(it) } ?: fallback
+    } catch (_: Exception) {
+        fallback
+    }
+
     private fun openInputStream(uri: Uri): InputStream? = if (uri.scheme == "file") {
         File(uri.path ?: "").inputStream()
     } else {
@@ -410,7 +493,7 @@ class AndroidMediaPlatformService(private val context: Context) : MediaPlatformS
     companion object {
         private const val TEMP_DIR_NAME = "meshtastic_media_temp"
         private const val MEDIA_STORAGE_DIR_NAME = "meshtastic_media"
-        private const val MAX_VOICE_DURATION_MS = 10_000 // 10 seconds max
+        private const val MAX_VOICE_SAFETY_DURATION_MS = 600_000 // 10 minutes safety cap
         private const val VOICE_CHANNELS = 1 // Mono
         private const val VOICE_SAMPLING_RATE_HZ = 16_000
         private const val VOICE_ENCODING_BITRATE_BPS = 8_000 // 8 kbps

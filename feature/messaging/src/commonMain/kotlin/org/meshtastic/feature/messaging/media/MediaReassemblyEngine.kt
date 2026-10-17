@@ -21,11 +21,15 @@ import kotlinx.coroutines.sync.withLock
 import okio.ByteString.Companion.toByteString
 import org.meshtastic.core.common.util.nowMillis
 
-/** Status of an incoming media transfer session. */
+/** Status of a media transfer session. */
 enum class TransferStatus {
-    IN_PROGRESS,
+    PREPARING,
+    IN_PROGRESS, // Sending or Receiving
+    WAITING_FOR_RECEIVER,
+    VERIFYING,
     COMPLETED,
     CORRUPTED,
+    FAILED,
     CANCELLED,
     TIMED_OUT,
 }

@@ -95,23 +95,14 @@ fun VoiceRecordingDialog(
 
     val scope = rememberCoroutineScope()
 
-    // Timer loop during recording
+    // Timer loop during recording - runs until user stops or cancels
     LaunchedEffect(isRecording) {
         if (isRecording) {
             recordingSeconds = 0
-            while (isRecording && recordingSeconds < 10) {
+            while (isRecording) {
                 delay(1000L)
                 if (isRecording) {
                     recordingSeconds++
-                    if (recordingSeconds >= 10) {
-                        // Max 10s auto-stop
-                        scope.launch {
-                            val res = mediaPlatformService.stopVoiceRecording()
-                            isRecording = false
-                            res.onSuccess { recordedResult = it }
-                                .onFailure { errorMessage = it.message ?: "Recording failed" }
-                        }
-                    }
                 }
             }
         }
@@ -181,13 +172,17 @@ fun VoiceRecordingDialog(
                     }
 
                     Spacer(modifier = Modifier.height(12.dp))
+                    val minutes = recordingSeconds / 60
+                    val seconds = recordingSeconds % 60
+                    val minStr = if (minutes < 10) "0$minutes" else "$minutes"
+                    val secStr = if (seconds < 10) "0$seconds" else "$seconds"
                     Text(
-                        text = "00:${if (recordingSeconds < 10) "0$recordingSeconds" else "$recordingSeconds"} / 00:10",
+                        text = "$minStr:$secStr",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                     )
                     Text(
-                        text = if (isRecording) stringResource(Res.string.media_stop_recording) else "Tap to start (10s max)",
+                        text = if (isRecording) stringResource(Res.string.media_stop_recording) else "Tap to start recording",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )

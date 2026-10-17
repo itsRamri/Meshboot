@@ -137,4 +137,5 @@ interface MediaPlatformService {
     // ── Storage ──
     suspend fun saveCompletedMedia(transferId: String, fileName: String, bytes: ByteArray): String
     suspend fun cleanupTemporaryFiles()
+    fun openMediaFile(filePath: String, mimeType: String): Result<Unit>
 }

@@ -86,6 +86,8 @@ class MediaTransferManagerTest {
         }
 
         override suspend fun cleanupTemporaryFiles() {}
+
+        override fun openMediaFile(filePath: String, mimeType: String): Result<Unit> = Result.success(Unit)
     }
 
     @Test
@@ -128,7 +130,7 @@ class MediaTransferManagerTest {
     }
 
     @Test
-    fun `outgoing transfer transmits all envelopes sequentially with progress updates`() = runTest {
+    fun `outgoing transfer transmits all envelopes sequentially then enters WAITING_FOR_RECEIVER until receipt`() = runTest {
         val fakeSendUseCase = FakeSendMessageUseCase()
         val fakePlatformService = FakeMediaPlatformService()
         val manager = MediaTransferManager(fakeSendUseCase, fakePlatformService)
@@ -150,10 +152,80 @@ class MediaTransferManagerTest {
         // Verify all envelopes were transmitted
         assertEquals(plan.envelopes.size, fakeSendUseCase.sentMessages.size)
 
+        // Sender is in WAITING_FOR_RECEIVER state, NOT immediately COMPLETED
         val state = manager.transferStates.value[plan.transferId]
         assertNotNull(state)
-        assertEquals(TransferStatus.COMPLETED, state.status)
+        assertEquals(TransferStatus.WAITING_FOR_RECEIVER, state.status)
         assertEquals(plan.totalChunks, state.currentChunk)
+
+        // Simulate incoming receipt from receiver
+        val receiptMessage = MediaEnvelope.createReceiptMessage(plan.transferId, plan.metadata.sha256.take(8))
+        manager.processIncomingMessage(receiptMessage)
+
+        val completedState = manager.transferStates.value[plan.transferId]
+        assertNotNull(completedState)
+        assertEquals(TransferStatus.COMPLETED, completedState.status)
+    }
+
+    @Test
+    fun `cancelled transfer ceases outgoing transmission and sets status to CANCELLED`() = runTest {
+        val fakeSendUseCase = FakeSendMessageUseCase()
+        val fakePlatformService = FakeMediaPlatformService()
+        val manager = MediaTransferManager(fakeSendUseCase, fakePlatformService)
+
+        val rawMedia = ByteArray(500) { it.toByte() }
+        val plan =
+            MediaChunker.chunk(
+                mediaType = MediaType.IMAGE,
+                compressedBytes = rawMedia,
+                originalSize = 1000L,
+                fileName = "large.webp",
+                chunkPayloadBytes = 50,
+            )
+
+        val testScope = TestScope(testScheduler)
+        manager.startOutgoingTransfer(testScope, plan, "0!ffffffff", interChunkDelayMs = 100L)
+        testScope.testScheduler.advanceTimeBy(150L) // Allow first chunk or two to transmit
+
+        manager.cancelTransfer(plan.transferId)
+        testScope.advanceUntilIdle()
+
+        val state = manager.transferStates.value[plan.transferId]
+        assertNotNull(state)
+        assertEquals(TransferStatus.CANCELLED, state.status)
+
+        // Late receipt should not make a cancelled transfer completed
+        val receiptMessage = MediaEnvelope.createReceiptMessage(plan.transferId, plan.metadata.sha256.take(8))
+        manager.processIncomingMessage(receiptMessage)
+        assertEquals(TransferStatus.CANCELLED, manager.transferStates.value[plan.transferId]?.status)
+    }
+
+    @Test
+    fun `receiver sends delivery receipt upon successful reassembly and verification`() = runTest {
+        val fakeSendUseCase = FakeSendMessageUseCase()
+        val fakePlatformService = FakeMediaPlatformService()
+        val manager = MediaTransferManager(fakeSendUseCase, fakePlatformService)
+
+        val rawMedia = "Test Voice Data".encodeToByteArray()
+        val plan = MediaChunker.chunk(MediaType.VOICE, rawMedia, 50L, "test_voice.ogg")
+
+        // Receiver receives all chunks
+        for (envelope in plan.envelopes) {
+            manager.processIncomingMessage(
+                text = envelope.toMessageText(),
+                senderId = "!12345678",
+                contactKey = "!12345678",
+            )
+        }
+
+        // Verify that the receiver sent exactly one receipt message
+        val sentReceipts = fakeSendUseCase.sentMessages.filter { MediaEnvelope.isMediaReceipt(it) }
+        assertEquals(1, sentReceipts.size)
+        val parsedReceipt = MediaEnvelope.parseReceiptOrNull(sentReceipts.first())
+        assertNotNull(parsedReceipt)
+        val (transferId, hash8) = parsedReceipt
+        assertEquals(plan.transferId, transferId)
+        assertEquals(plan.metadata.sha256.take(8), hash8)
     }
 
     @Test

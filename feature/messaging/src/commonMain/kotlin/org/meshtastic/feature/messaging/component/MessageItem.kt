@@ -778,11 +778,11 @@ private fun MediaAttachmentItem(
                         isPlaying = isPlaying,
                         onPlayToggle = {
                             if (isPlaying) {
-                                mediaPlatformService?.pauseAudio()
+                                mediaPlatformService.pauseAudio()
                                 isPlaying = false
                             } else {
                                 val path = localAttachment?.filePath
-                                if (path != null && mediaPlatformService != null) {
+                                if (path != null) {
                                     coroutineScope.launch {
                                         mediaPlatformService.playAudio(path) {
                                             isPlaying = false
@@ -797,27 +797,51 @@ private fun MediaAttachmentItem(
                         onDownload = {
                             // Audio will automatically be marked completed upon receiving chunks or reconstructed
                         },
+                        onCancel = {
+                            mediaTransferManager.cancelTransfer(envelope.transferId)
+                        },
                     )
                 }
                 org.meshtastic.feature.messaging.media.MediaType.IMAGE -> {
                     val isLocalAvailable = localAttachment != null
+                    val filePath = localAttachment?.filePath
                     ImageAttachmentBubble(
+                        filePath = filePath,
                         sizeBytes = metadata.compressedSize,
-                        onClick = onClick,
+                        onClick = {
+                            if (filePath != null) {
+                                mediaPlatformService.openMediaFile(filePath, "image/*")
+                            } else {
+                                onClick()
+                            }
+                        },
                         transferState = currentTransferState,
                         isLocalAvailable = isLocalAvailable,
                         onDownload = {},
+                        onCancel = {
+                            mediaTransferManager.cancelTransfer(envelope.transferId)
+                        },
                     )
                 }
                 org.meshtastic.feature.messaging.media.MediaType.PDF -> {
                     val isLocalAvailable = localAttachment != null
+                    val filePath = localAttachment?.filePath
                     PdfAttachmentBubble(
                         fileName = metadata.fileName,
                         sizeBytes = metadata.compressedSize,
-                        onClick = onClick,
+                        onClick = {
+                            if (filePath != null) {
+                                mediaPlatformService.openMediaFile(filePath, "application/pdf")
+                            } else {
+                                onClick()
+                            }
+                        },
                         transferState = currentTransferState,
                         isLocalAvailable = isLocalAvailable,
                         onDownload = {},
+                        onCancel = {
+                            mediaTransferManager.cancelTransfer(envelope.transferId)
+                        },
                     )
                 }
             }

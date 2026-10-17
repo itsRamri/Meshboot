@@ -48,12 +48,27 @@ class MediaTransferManager(
     private val outgoingJobs = mutableMapOf<String, Job>()
     private val completedAttachments = mutableMapOf<String, MediaAttachment>()
 
-    /** Ingests an incoming text message, parsing it as a media envelope if applicable. */
+    /** Ingests an incoming text message, parsing it as a media envelope or receipt if applicable. */
     suspend fun processIncomingMessage(
         text: String,
         senderId: String? = null,
         recipientId: String? = null,
+        contactKey: String? = null,
     ): ReassemblyOutcome? {
+        val receipt = MediaEnvelope.parseReceiptOrNull(text)
+        if (receipt != null) {
+            val (receiptTransferId, _) = receipt
+            val existingState = _transferStates.value[receiptTransferId]
+            if (existingState != null && existingState.isOutgoing && existingState.status != TransferStatus.CANCELLED && existingState.status != TransferStatus.FAILED) {
+                updateTransferState(
+                    existingState.copy(
+                        status = TransferStatus.COMPLETED,
+                    ),
+                )
+            }
+            return null
+        }
+
         val envelope = MediaEnvelope.parseOrNull(text) ?: return null
         val outcome = reassemblyEngine.ingestChunk(envelope, senderId, recipientId)
 
@@ -120,6 +135,20 @@ class MediaTransferManager(
                             attachment = attachment,
                         ),
                     )
+
+                    // Send application-level completion receipt back to sender
+                    val receiptTarget = contactKey ?: senderId
+                    if (receiptTarget != null) {
+                        val receiptMessage = MediaEnvelope.createReceiptMessage(
+                            transferId = outcome.transferId,
+                            hash8 = outcome.metadata.sha256.take(8),
+                        )
+                        try {
+                            sendMessageUseCase.invoke(text = receiptMessage, contactKey = receiptTarget)
+                        } catch (e: Exception) {
+                            Logger.w(e) { "Failed to send media completion receipt to $receiptTarget" }
+                        }
+                    }
                 } catch (e: Exception) {
                     Logger.e(e) { "Failed to save completed media" }
                 }
@@ -155,7 +184,7 @@ class MediaTransferManager(
      * @param scope CoroutineScope to launch the transmission loop in.
      * @param plan The chunk plan to transmit.
      * @param contactKey Destination contact key or channel index.
-     * @param interChunkDelayMs Delay between chunks to prevent flooding the mesh (default 2000ms).
+     * @param interChunkDelayMs Delay between chunks to prevent flooding the mesh (default 2500ms).
      */
     fun startOutgoingTransfer(
         scope: CoroutineScope,
@@ -183,6 +212,7 @@ class MediaTransferManager(
                         sendMessageUseCase.invoke(text = messageText, contactKey = contactKey)
 
                         val currentChunkNum = index + 1
+                        val isLastChunk = currentChunkNum == plan.totalChunks
                         updateTransferState(
                             MediaTransferState(
                                 transferId = transferId,
@@ -191,15 +221,15 @@ class MediaTransferManager(
                                 currentChunk = currentChunkNum,
                                 totalChunks = plan.totalChunks,
                                 status =
-                                if (currentChunkNum == plan.totalChunks) {
-                                    TransferStatus.COMPLETED
+                                if (isLastChunk) {
+                                    TransferStatus.WAITING_FOR_RECEIVER
                                 } else {
                                     TransferStatus.IN_PROGRESS
                                 },
                             ),
                         )
 
-                        if (index < plan.envelopes.size - 1) {
+                        if (!isLastChunk) {
                             delay(interChunkDelayMs)
                         }
                     }
@@ -224,7 +254,7 @@ class MediaTransferManager(
                             isOutgoing = true,
                             currentChunk = 0,
                             totalChunks = plan.totalChunks,
-                            status = TransferStatus.CORRUPTED,
+                            status = TransferStatus.FAILED,
                             errorMessage = e.message ?: "Transfer error",
                         ),
                     )

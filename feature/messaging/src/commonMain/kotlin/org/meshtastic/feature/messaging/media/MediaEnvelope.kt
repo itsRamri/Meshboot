@@ -84,13 +84,41 @@ data class MediaEnvelope(
     companion object {
         const val PROTOCOL_VERSION = 1
         const val ENVELOPE_PREFIX = "MM"
+        const val RECEIPT_PREFIX = "MM:RCV"
         const val MAX_CHUNKS = 250
         const val MAX_RAW_CHUNK_PAYLOAD_BYTES = 120
 
         /** Fast preliminary check before running full parsing. */
         fun isMediaEnvelope(text: String): Boolean {
             val trimmed = text.trim()
-            return trimmed.startsWith("[$ENVELOPE_PREFIX:v1:") && trimmed.endsWith("]")
+            return (trimmed.startsWith("[$ENVELOPE_PREFIX:v1:") || trimmed.startsWith("[$RECEIPT_PREFIX:v1:")) &&
+                trimmed.endsWith("]")
+        }
+
+        /** Checks if a message text is a receiver receipt. */
+        fun isMediaReceipt(text: String): Boolean {
+            val trimmed = text.trim()
+            return trimmed.startsWith("[$RECEIPT_PREFIX:v1:") && trimmed.endsWith("]")
+        }
+
+        /** Formats a delivery receipt message for a verified media transfer: `[MM:RCV:v1:<transferId>:<hash8>]`. */
+        fun createReceiptMessage(transferId: String, hash8: String): String =
+            "[$RECEIPT_PREFIX:v$PROTOCOL_VERSION:${transferId.lowercase()}:${hash8.lowercase()}]"
+
+        /** Parses a receiver receipt message into Pair(transferId, hash8) or null. */
+        fun parseReceiptOrNull(text: String): Pair<String, String>? {
+            val trimmed = text.trim()
+            if (!isMediaReceipt(trimmed)) return null
+            val inner = trimmed.substring(1, trimmed.length - 1)
+            val parts = inner.split(':')
+            // Expected parts: ["MM", "RCV", "v1", transferId, hash8]
+            if (parts.size != 5) return null
+            if (parts[0] != "MM" || parts[1] != "RCV" || parts[2] != "v$PROTOCOL_VERSION") return null
+            val transferId = parts[3].lowercase()
+            val hash8 = parts[4].lowercase()
+            if (transferId.length != 8 || !transferId.all { it in "0123456789abcdef" }) return null
+            if (hash8.length != 8 || !hash8.all { it in "0123456789abcdef" }) return null
+            return transferId to hash8
         }
 
         /**
@@ -101,7 +129,7 @@ data class MediaEnvelope(
         @Suppress("ReturnCount")
         fun parseOrNull(text: String): MediaEnvelope? {
             val trimmed = text.trim()
-            if (!isMediaEnvelope(trimmed)) return null
+            if (!isMediaEnvelope(trimmed) || isMediaReceipt(trimmed)) return null
 
             // Strip enclosing brackets '[' and ']'
             val inner = trimmed.substring(1, trimmed.length - 1)

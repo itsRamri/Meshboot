@@ -1085,10 +1085,12 @@
     <string name="media_compressed_image">Compressed Photo</string>
     <string name="media_compressed_size">Compressed: %1$s</string>
     <string name="media_compression_ratio">Ratio: %1$s</string>
+    <string name="media_download">Download</string>
     <string name="media_duration">Duration: %1$s</string>
     <string name="media_est_transfer_time">Est. Transfer Time: %1$s</string>
     <string name="media_feature_not_available">Media transmission is not supported on LoRa mesh</string>
     <string name="media_lossy_downsampling">Allow lossy downsampling</string>
+    <string name="media_not_available_on_device">No compatible viewer installed to open this file</string>
     <string name="media_open_file">Open File</string>
     <string name="media_original_size">Original: %1$s</string>
     <string name="media_pause">Pause</string>
@@ -1100,11 +1102,20 @@
     <string name="media_save_file">Save File</string>
     <string name="media_select_pdf">Select PDF Document</string>
     <string name="media_select_photo">Select Photo</string>
+    <string name="media_status_cancelled">Cancelled</string>
+    <string name="media_status_completed">Delivered</string>
+    <string name="media_status_failed">Failed</string>
+    <string name="media_status_preparing">Preparing…</string>
+    <string name="media_status_receiving">Receiving %1$d/%2$d</string>
+    <string name="media_status_sending">Sending %1$d/%2$d</string>
+    <string name="media_status_timed_out">Timed out</string>
+    <string name="media_status_verifying">Verifying…</string>
+    <string name="media_status_waiting_receiver">Waiting for receiver…</string>
     <string name="media_stop_recording">Stop Recording</string>
     <string name="media_transfer_complete">Transfer Complete</string>
     <string name="media_transfer_failed">Transfer Failed</string>
-    <string name="media_download">Download</string>
     <string name="media_transferring">Transferring %1$d/%2$d (%3$s)</string>
+    <string name="media_view_image">View Photo</string>
     <string name="media_voice_message">Voice Message</string>
     <!-- MESH -->
     <string name="mesh_beacon">Mesh Beacon</string>

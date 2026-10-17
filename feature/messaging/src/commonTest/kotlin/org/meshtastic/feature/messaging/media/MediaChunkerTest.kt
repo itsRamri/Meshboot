@@ -94,4 +94,26 @@ class MediaChunkerTest {
             )
         }
     }
+
+    @Test
+    fun `voice recording beyond 10 seconds produces complete chunk plan without truncation`() {
+        // Simulating a 45-second voice recording (45s * 1000 bytes/sec = 45000 bytes)
+        val audioBytes = ByteArray(4500) { (it % 128).toByte() }
+        val durationSeconds = 45
+        val chunkPlan =
+            MediaChunker.chunk(
+                mediaType = MediaType.VOICE,
+                compressedBytes = audioBytes,
+                originalSize = audioBytes.size.toLong(),
+                fileName = "voice_${durationSeconds}s.ogg",
+                chunkPayloadBytes = 84,
+            )
+
+        // All chunks are prepared before transmission (prepare-first, transmit-second)
+        assertTrue(chunkPlan.totalChunks > 1)
+        assertEquals(chunkPlan.totalChunks, chunkPlan.envelopes.size)
+        // Verify SHA-256 matches complete audio stream
+        assertEquals(audioBytes.toByteString().sha256().hex().lowercase(), chunkPlan.metadata.sha256)
+        assertEquals("voice_45s.ogg", chunkPlan.metadata.fileName)
+    }
 }

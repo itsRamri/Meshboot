@@ -57,4 +57,7 @@ class NoOpMediaPlatformService : MediaPlatformService {
     ): String = ""
 
     override suspend fun cleanupTemporaryFiles() {}
+
+    override fun openMediaFile(filePath: String, mimeType: String): Result<Unit> =
+        Result.failure(UnsupportedOperationException("Opening media files not supported on this platform"))
 }

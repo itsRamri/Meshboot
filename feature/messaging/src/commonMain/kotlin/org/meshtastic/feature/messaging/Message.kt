@@ -203,6 +203,9 @@ fun MessageScreen(
             coroutineScope.launch {
                 mediaPlatformService.compressImage(uri.toString())
                     .onSuccess { pendingImageResult = it }
+                    .onFailure { error ->
+                        viewModel.showMediaError(error.message ?: "Failed to process selected image")
+                    }
             }
         }
     }
@@ -211,6 +214,9 @@ fun MessageScreen(
             coroutineScope.launch {
                 mediaPlatformService.inspectAndOptimizePdf(uri.toString())
                     .onSuccess { pendingPdfResult = it }
+                    .onFailure { error ->
+                        viewModel.showMediaError(error.message ?: "Failed to process selected PDF")
+                    }
             }
         }
     }

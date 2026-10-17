@@ -234,8 +234,12 @@ class MessageViewModel(
             }
             .map { pagingData ->
                 pagingData.filter { msg ->
-                    val envelope = org.meshtastic.feature.messaging.media.MediaEnvelope.parseOrNull(msg.text)
-                    envelope == null || envelope.chunkIndex == 1
+                    if (org.meshtastic.feature.messaging.media.MediaEnvelope.isMediaReceipt(msg.text)) {
+                        false
+                    } else {
+                        val envelope = org.meshtastic.feature.messaging.media.MediaEnvelope.parseOrNull(msg.text)
+                        envelope == null || envelope.chunkIndex == 1
+                    }
                 }
             }
             .cachedIn(viewModelScope)
@@ -353,9 +357,14 @@ class MessageViewModel(
             contactKeyForPagedMessages.filterNotNull().flatMapLatest { key ->
                 packetRepository.getMessagesFrom(key, limit = 50, getNode = ::getNode)
             }.collect { messages ->
+                val currentKey = contactKeyForPagedMessages.value
                 for (msg in messages) {
                     if (MediaEnvelope.isMediaEnvelope(msg.text)) {
-                        mediaTransferManager.processIncomingMessage(msg.text, msg.node.user.id)
+                        mediaTransferManager.processIncomingMessage(
+                            text = msg.text,
+                            senderId = msg.node.user.id,
+                            contactKey = currentKey,
+                        )
                     }
                 }
             }
@@ -390,7 +399,16 @@ class MessageViewModel(
         if (contactKeyForPagedMessages.value != contactKey) {
             contactKeyForPagedMessages.value = contactKey
         }
-        return packetRepository.getMessagesFrom(contactKey, limit = limit, getNode = ::getNode)
+        return packetRepository.getMessagesFrom(contactKey, limit = limit, getNode = ::getNode).map { list ->
+            list.filter { msg ->
+                if (MediaEnvelope.isMediaReceipt(msg.text)) {
+                    false
+                } else {
+                    val envelope = MediaEnvelope.parseOrNull(msg.text)
+                    envelope == null || envelope.chunkIndex == 1
+                }
+            }
+        }
     }
 
     fun toggleShowQuickChat() {
@@ -496,6 +514,10 @@ class MessageViewModel(
 
     fun cancelMediaTransfer(transferId: String) {
         mediaTransferManager.cancelTransfer(transferId)
+    }
+
+    fun showMediaError(message: String) {
+        snackbarManager.showSnackbar(message)
     }
 
     // region ── Translation ──

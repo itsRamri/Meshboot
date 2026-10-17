@@ -1043,10 +1043,12 @@ media_cancel_transfer
 media_compressed_image
 media_compressed_size
 media_compression_ratio
+media_download
 media_duration
 media_est_transfer_time
 media_feature_not_available
 media_lossy_downsampling
+media_not_available_on_device
 media_open_file
 media_original_size
 media_pause
@@ -1058,10 +1060,20 @@ media_record_voice
 media_save_file
 media_select_pdf
 media_select_photo
+media_status_cancelled
+media_status_completed
+media_status_failed
+media_status_preparing
+media_status_receiving
+media_status_sending
+media_status_timed_out
+media_status_verifying
+media_status_waiting_receiver
 media_stop_recording
 media_transfer_complete
 media_transfer_failed
 media_transferring
+media_view_image
 media_voice_message
 ### MESH ###
 mesh_beacon
