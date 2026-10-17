@@ -457,21 +457,28 @@ class AndroidMediaPlatformService(private val context: Context) : MediaPlatformS
         null
     }
 
-    private fun resolveFileName(uri: Uri, fallback: String): String = try {
-        if (uri.scheme == "content") {
-            context.contentResolver.query(uri, arrayOf(android.provider.OpenableColumns.DISPLAY_NAME), null, null, null)?.use { cursor ->
-                if (cursor.moveToFirst()) {
-                    val idx = cursor.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME)
-                    if (idx != -1) {
-                        val name = cursor.getString(idx)
-                        if (!name.isNullOrBlank()) return@try MediaMetadata.sanitizeFileName(name)
+    private fun resolveFileName(uri: Uri, fallback: String): String {
+        try {
+            if (uri.scheme == "content") {
+                val projection = arrayOf(android.provider.OpenableColumns.DISPLAY_NAME)
+                context.contentResolver.query(uri, projection, null, null, null)?.use { cursor ->
+                    if (cursor.moveToFirst()) {
+                        val idx = cursor.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME)
+                        if (idx != -1) {
+                            val name = cursor.getString(idx)
+                            if (!name.isNullOrBlank()) {
+                                return MediaMetadata.sanitizeFileName(name)
+                            }
+                        }
                     }
                 }
             }
-        }
-        uri.lastPathSegment?.let { MediaMetadata.sanitizeFileName(it) } ?: fallback
-    } catch (_: Exception) {
-        fallback
+            val lastSeg = uri.lastPathSegment
+            if (lastSeg != null) {
+                return MediaMetadata.sanitizeFileName(lastSeg)
+            }
+        } catch (_: Exception) {}
+        return fallback
     }
 
     private fun openInputStream(uri: Uri): InputStream? = if (uri.scheme == "file") {
